@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	sciter "github.com/sciter-sdk/go-sciter"
 	"github.com/sciter-sdk/go-sciter/window"
 )
@@ -27,11 +28,14 @@ const (
 	// AuthURL .
 	AuthURL = "https://passport.jd.com/uc/qrCodeTicketValidation"
 	// TryURL .
-	TryURL = "http://try.jd.com/migrate/apply?source=0&activityId="
+	TryURL = "http://try.jd.com/migrate/apply?source=0&activityId=253484"
 	// TryProductURL .
 	TryProductURL = "https://try.jd.com/activity/getActivityList"
 	// Referer .
 	Referer = "https://passport.jd.com/new/login.aspx"
+
+	// UserURL .
+	UserURL = "https://i.jd.com/user/info"
 )
 
 // JDCookie .
@@ -62,14 +66,14 @@ type TryResult struct {
 	Success bool   `json:"success"`
 }
 
-var jdCookie *JDCookie
-var callbackChan = make(chan string)
-var authCookieChan = make(chan JDCookie)
+var globalJdQRCookie *JDCookie
+var globalThorCookie *http.Cookie
+var globalCallbackChan = make(chan string)
 var uiLog *sciter.Element
 
 func main() {
 	go check()
-	w, err := window.New(sciter.SW_TITLEBAR|sciter.SW_CONTROLS|sciter.SW_MAIN, &sciter.Rect{Left: 0, Top: 0, Right: 250, Bottom: 390})
+	w, err := window.New(sciter.SW_TITLEBAR|sciter.SW_CONTROLS|sciter.SW_MAIN, &sciter.Rect{Left: 0, Top: 0, Right: 541, Bottom: 548})
 	if err != nil {
 		panic(err)
 	}
@@ -110,12 +114,22 @@ func initFunc(w *window.Window) {
 
 // 定义回调
 func initCallback(w *window.Window) {
+	cb := &sciter.CallbackHandler{
+		//加载数据过程中
+		OnDataLoaded: func(p *sciter.ScnDataLoaded) int {
+			// fmt.Println("加载中:", p.Uri())
+			return sciter.LOAD_OK
+		},
+	}
+	w.SetCallback(cb)
 	go func() {
 		for {
-			val := <-callbackChan
+			val := <-globalCallbackChan
 			w.Call("callback", sciter.NewValue(val))
 		}
 	}()
+
+	globalCallbackChan <- "init"
 }
 
 // 页面显示日志
@@ -132,27 +146,28 @@ func allPrintLn(message string) {
 // 登录跳转及获取cookies
 func login(ticket string) {
 	url := AuthURL + "?t=" + ticket
+	fmt.Println(url)
 	resp, err := http.Get(url)
 	if err != nil {
 		panic(err)
 	}
-	callbackChan <- "qr-login-ok"
-	uiPrintLn("获取试用商品申请试用")
-	cookies := &JDCookie{resp.Cookies()}
-	fmt.Println(cookies)
+	globalCallbackChan <- "qr-login-ok"
+	cookie, _ := (&JDCookie{resp.Cookies()}).getCookie("thor")
+	getUser(cookie)
 }
 
 // 试用
-func tryIt(cookies *JDCookie) {
+func tryIt() {
 	url := TryURL
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	for _, cookie := range cookies.cookies {
-		req.AddCookie(cookie)
-	}
+	req.AddCookie(globalThorCookie)
+	req.Header.Add("Referer", Referer)
+
+	log.Println(req)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -160,7 +175,7 @@ func tryIt(cookies *JDCookie) {
 		panic(err)
 	}
 	defer resp.Body.Close()
-
+	log.Println(resp)
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		panic(err)
@@ -186,7 +201,7 @@ func getQRImage() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	jdCookie = &JDCookie{resp.Cookies()}
+	globalJdQRCookie = &JDCookie{resp.Cookies()}
 	return base64.StdEncoding.EncodeToString(body), nil
 }
 
@@ -196,14 +211,14 @@ func check() {
 	for {
 		log.Println("检查登录")
 		time.Sleep(3000 * time.Millisecond)
-		if jdCookie == nil {
+		if globalJdQRCookie == nil {
 			continue
 		}
-		qrCookie, err := jdCookie.getCookie("QRCodeKey")
+		qrCookie, err := globalJdQRCookie.getCookie("QRCodeKey")
 		if err != nil {
 			continue
 		}
-		tokenCookie, err := jdCookie.getCookie("wlfstk_smdl")
+		tokenCookie, err := globalJdQRCookie.getCookie("wlfstk_smdl")
 		if err != nil {
 			continue
 		}
@@ -249,12 +264,30 @@ func check() {
 		if result.Code == 205 || result.Code == 203 {
 			allPrintLn(result.Msg)
 			lastCode = 0
-			jdCookie = nil
-			callbackChan <- "qr-timeout"
+			globalJdQRCookie = nil
+			globalCallbackChan <- "qr-timeout"
 			continue
 		}
 		lastCode = result.Code
 	}
+}
+
+func getUser(cookie *http.Cookie) {
+	req, err := http.NewRequest("GET", UserURL, nil)
+	if err != nil {
+		allPrintLn(err.Error())
+	}
+	req.AddCookie(cookie)
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		allPrintLn(err.Error())
+	}
+	defer resp.Body.Close()
+
+	body, _ := ioutil.ReadAll(resp.Body)
+	doc, _ := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
+	name := doc.Find("#user-info .info-m B").Text()
 }
 
 // 当前时间戳

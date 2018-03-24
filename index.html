@@ -6,13 +6,30 @@
     body,
     p,
     div,
-    img {
+    img,
+    ul,
+    li {
       margin: 0;
       padding: 0;
     }
 
+    ui,
+    li {
+      list-style: none;
+    }
+
+    img {
+      border: 0;
+    }
+
+    body {
+      padding: 5px;
+      font-family: "Microsoft YaHei", SimSun, '\5b8b\4f53', sans-serif;
+    }
+
     #ui-log {
-      height: 100px;
+      display: none;
+      height: 80px;
       position: absolute;
       left: 0;
       right: 0;
@@ -21,29 +38,101 @@
       border: 1px solid #ccc;
       margin: 10px;
       font-size: 12px;
-      padding: 5px;
     }
 
     #ui-log p {
       padding: 2px;
     }
 
-    #qr-img-wrap {
+
+
+    .content {
+      width: 525px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #try-products {
+      float: left;
+      width: 300px;
+      height: 500px;
+      font-size: 12px;
+      padding: 5px;
+    }
+
+    #try-products ul {
+      overflow-y: auto;
+      height: 100%;
+    }
+
+    .try-product {
+      border-bottom: 1px dotted #ccc;
+      padding: 5px;
+    }
+
+    .try-product-img {
+      width: 80px;
+      height: 80px;
+      vertical-align: middle;
+    }
+
+    .try-product-title {
+      display: inline-block;
+      width: 184px;
+      vertical-align: middle;
+      color: #444;
+      font-size: 12px;
+      line-height: 18px;
+      margin-left: 5px;
+    }
+
+    #user {
+      float: left;
+      margin-left: 5px;
+      width: 200px;
+      height: 500px;
+      padding: 5px;
+      position: relative;
+    }
+
+    #qr-login {
       position: absolute;
-      width: 160px;
-      height: 200px;
-      top: 20px;
+      width: 150px;
+      height: 172px;
+      text-align: center;
       left: 50%;
-      transform: translate(-50%, 0);
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    #qr-img-wrap {
+      font-size: 0;
+    }
+
+    #qr-img {
+      width: 150px;
+      height: 150px;
+      background: #ccc;
+    }
+
+    .qr-img-scan-tip {
+      font-size: 12px;
+      height: 12px;
+      line-height: 12px;
+      color: #999;
+      margin-top: 5px;
+      text-align: center;
     }
 
     #qr-img-cover {
+      display: none;
+      position: absolute;
+      left: 0;
+      top: 0;
       width: 100%;
       height: 100%;
       background-color: rgba(0, 0, 0, .6);
-      position: absolute;
-      top: 0;
-      left: 0;
+      z-index: 1;
     }
 
     .qr-img-mc {
@@ -72,76 +161,103 @@
       font-size: 12px;
       text-align: center;
     }
-
-    #qr-img {
-      position: absolute;
-      top: 5px;
-      left: 5px;
-      width: 150px;
-      height: 150px;
-    }
-
-    .qr-img-scan-tip {
-      font-size: 12px;
-      color: #999;
-      position: absolute;
-      text-align: center;
-      width: 100%;
-      bottom: 15px;
-    }
-
-    #try-products {
-      display: none;
-      position: absolute;
-      height: 210px;
-      left: 0;
-      top: 0;
-      right: 0;
-      overflow-y: scroll;
-      border: 1px solid #ccc;
-      margin: 10px;
-      font-size: 12px;
-      padding: 5px;
-    }
   </style>
 </head>
 
 <body>
   <div id="ui-log"></div>
 
-  <div id="qr-login">
-    <div id="qr-img-wrap">
-      <img id="qr-img" src="">
-      <div id="qr-img-cover">
-        <div class="qr-img-mc">
-          <p class="qr-img-tip">二维码已失效</p>
-          <a id="qr-img-refresh" href="#">刷新</a>
+  <div class="content">
+
+    <div id="try-products">
+      <ul>
+        <li class="try-product">
+          <img class="try-product-img" src="http://img30.360buyimg.com/pop/s400x400_jfs/t14929/8/1469685363/196581/c2afbd71/5a504796N3a66f52c.png">
+          <p class="try-product-title">南极人（NANJIREN） 颈椎按摩器 </p>
+        </li>
+        <li class="try-product">
+          <img class="try-product-img" src="http://img30.360buyimg.com/pop/s400x400_jfs/t14929/8/1469685363/196581/c2afbd71/5a504796N3a66f52c.png">
+          <p class="try-product-title">南极人（NANJIREN） 颈椎按摩器 颈部腰部肩部按摩靠垫 按摩枕 NBX6F50363咖啡色</p>
+        </li>
+        <li class="try-product">
+          <img class="try-product-img" src="http://img30.360buyimg.com/pop/s400x400_jfs/t14929/8/1469685363/196581/c2afbd71/5a504796N3a66f52c.png">
+          <p class="try-product-title">南极人（NANJIREN） 颈椎按摩器 颈部腰部</p>
+        </li>
+        <li class="try-product">
+          <img class="try-product-img" src="http://img30.360buyimg.com/pop/s400x400_jfs/t14929/8/1469685363/196581/c2afbd71/5a504796N3a66f52c.png">
+          <p class="try-product-title">南极人（NANJIREN） 颈椎按摩器 颈部腰部肩部按摩靠垫 按摩枕 NBX6F50363咖啡色</p>
+        </li>
+        <li class="try-product">
+          <img class="try-product-img" src="http://img30.360buyimg.com/pop/s400x400_jfs/t14929/8/1469685363/196581/c2afbd71/5a504796N3a66f52c.png">
+          <p class="try-product-title">南极人（NANJIREN） 颈椎按摩器 颈部腰部肩部按摩靠垫 按摩枕 NBX6F50363咖啡色</p>
+        </li>
+        <li class="try-product">
+          <img class="try-product-img" src="http://img30.360buyimg.com/pop/s400x400_jfs/t14929/8/1469685363/196581/c2afbd71/5a504796N3a66f52c.png">
+          <p class="try-product-title">南极人（NANJIREN） 颈椎按摩器 颈部腰部肩部按摩靠垫 按摩枕 NBX6F50363咖啡色</p>
+        </li>
+        <li class="try-product">
+          <img class="try-product-img" src="http://img30.360buyimg.com/pop/s400x400_jfs/t14929/8/1469685363/196581/c2afbd71/5a504796N3a66f52c.png">
+          <p class="try-product-title">南极人（NANJIREN） 颈椎按摩器 颈部腰部肩部按摩靠垫 按摩枕 NBX6F50363咖啡色</p>
+        </li>
+        <li class="try-product">
+          <img class="try-product-img" src="http://img30.360buyimg.com/pop/s400x400_jfs/t14929/8/1469685363/196581/c2afbd71/5a504796N3a66f52c.png">
+          <p class="try-product-title">南极人（NANJIREN） 颈椎按摩器 颈部腰部肩部按摩靠垫 按摩枕 NBX6F50363咖啡色</p>
+        </li>
+        <li class="try-product">
+          <img class="try-product-img" src="http://img30.360buyimg.com/pop/s400x400_jfs/t14929/8/1469685363/196581/c2afbd71/5a504796N3a66f52c.png">
+          <p class="try-product-title">南极人（NANJIREN） 颈椎按摩器 颈部腰部肩部按摩靠垫 按摩枕 NBX6F50363咖啡色</p>
+        </li>
+      </ul>
+    </div>
+
+    <div id="user">
+      <div id="qr-login">
+        <div id="qr-img-wrap">
+          <img id="qr-img" src="">
+          <p class="qr-img-scan-tip">扫描二维码登录</p>
+        </div>
+        <div id="qr-img-cover">
+          <div class="qr-img-mc">
+            <p class="qr-img-tip">二维码已失效</p>
+            <a id="qr-img-refresh" href="#">刷新</a>
+          </div>
         </div>
       </div>
-      <p class="qr-img-scan-tip">扫描二维码登录</p>
+      <div id="info">
+        <p id="name"></p>
+      </div>
     </div>
-  </div>
 
-  <div id="try-products">
-
-  </div>
-
-  <script type="text/tiscript">
+    <script type="text/tiscript">
+      self.ready = function() {
         $(#qr-img-refresh).on("click", function(){
-            $(#qr-img).attributes["src"] = view.getQRImage();
-            $(#qr-img-cover).style["display"] = "none"; 
+          getQRImage()
+          $(#qr-img-cover).style["display"] = "none"; 
         });
-
-        function callback(data){
-          if (data == "qr-timeout") {
-            $(#qr-img-cover).style["display"] = "block";
-          }
-          if (data == "qr-login-ok") {
-            $(#qr-login).style["display"] = "none";
-            $(#try-products).style["display"] = "block";
-          }
+      }
+      
+      function callback(data){
+        if (data == "qr-timeout") {
+          $(#qr-img-cover).style["display"] = "block";
         }
-        
+        if (data == "qr-login-ok") {
+          $(#qr-login).style["display"] = "none";
+          $(#try-products).style["display"] = "block";
+        }
+        if (data == "init") {
+          getQRImage()
+        }
+        if (data == "user") {
+          
+        }
+      }
+
+      function getQRImage() {
+        $(#qr-img).attributes["src"] = view.getQRImage();
+      }
+
+      
+
     </script>
 </body>
 
