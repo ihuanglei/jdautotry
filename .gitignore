@@ -16,4 +16,9 @@
 .vscode/
 
 debug
-vendor
+vendor*
+.DS_Store
+jdautotry
+bind_*
+output
+

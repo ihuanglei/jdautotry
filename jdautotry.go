@@ -33,6 +33,8 @@ func initJD() {
 
 func initUI() {
 	if err := bootstrap.Run(bootstrap.Options{
+		// Asset:         Asset,
+		// RestoreAssets: RestoreAssets,
 		AstilectronOptions: astilectron.Options{
 			AppIconDarwinPath:  "resources/icon.icns",
 			AppIconDefaultPath: "resources/icon.png",
