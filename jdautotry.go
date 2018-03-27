@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/asticode/go-astilectron"
 	bootstrap "github.com/asticode/go-astilectron-bootstrap"
@@ -84,7 +83,7 @@ func jdCallback(c *jd.Channel) {
 		return
 	}
 	jsonStr := string(bs)
-	log.Println(jsonStr)
+	// log.Println(jsonStr)
 	w.SendMessage(jsonStr, func(m *astilectron.EventMessage) {
 	})
 }
