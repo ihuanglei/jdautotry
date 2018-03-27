@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>京东试用本地版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.bootcss.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        [v-cloak] {
+            display: none;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Microsoft YaHei;
+            background-color: #f9f9f9;
+        }
+
+        li {
+            list-style: none;
+        }
+
+        #app {
+            /* position: absolute; */
+            overflow: hidden;
+            /* width: 100%;
+            height: 100%; */
+        }
+
+        .qr-img-wrap {
+            position: fixed;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, .5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            flex-direction: column;
+            /* display: none; */
+        }
+
+        .qr-img-wrap p{
+            margin: 10px;
+            color: #fff;
+            font-size: 12px;
+        }
+
+        .qr-img {
+            width: 150px;
+            height: 150px;
+            background-color: #fff;
+            padding: 5px;
+        }
+
+        .user {
+            position: fixed;
+            left: 0;
+            top: 0;
+            right: 0;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            padding: 10px;
+            height: 100px;
+            background-color: #fff;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .name {
+            font-size: 14px;
+            color: #222;
+            margin: 0 0 0 20px;
+            padding: 0;
+        }
+
+        .avatar {
+            width: 80px;
+            height: 80px;
+        }
+
+        .products {
+            margin-top: 110px;
+            background-color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div class="qr-img-wrap" v-if="!isLogin">
+            <img class="qr-img" :src="qrImg">
+            <p>扫描二维码登录</p>
+        </div>
+        <div class="user">
+            <img class="avatar" :src="avatar">
+            <p class="name">{{name}}</p>
+        </div>
+        <table class="table table-striped products" id="products">
+            <thead>
+                <tr>
+                    <th>图片</th>
+                    <th>商品名称</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="product in products">
+                    <th>
+                        <img class="avatar" :src="product.img">
+                    </th>
+                    <td>{{product.name}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <script src="https://cdn.bootcss.com/vue/2.5.16/vue.min.js"></script>
+    <script>
+        var vm = new Vue({
+            el: '#app',
+            data: {
+                isLogin: false,
+                name: '未登录',
+                avatar: null,
+                qrImg: null,
+                products: []//[{ "id": "252077", "name": "天玺妙香 趣味蚂蚁线香插 创意沉香檀香线香座香炉香道茶道摆件茶宠 食香蚁-红铜色", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t16216/72/1271885439/389001/6e86c15/5a4f3e78Nee4e8155.jpg" }, { "id": "251936", "name": "360度旋转 麦凯儿童安全座椅汽车用0-4岁新生婴儿宝宝座椅可躺座椅ISOFIX硬接口 天蓝色", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t19024/203/588421843/474580/93246c12/5a9a3dd9Nb1903f99.jpg" }, { "id": "251647", "name": "【沂蒙馆】孙武宴 山东蒙山特产五香酱驴肉200g 熟食即食驴肉火烧", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t13147/357/1969056549/470015/71c8a0ec/5a322abcNaa9851c9.jpg" }, { "id": "251618", "name": "京东叮咚(DingDong) 2代人工智能音箱新旗舰 迷你蓝牙/WIFI音响 海量应用内容 语音操控家电 北欧灰", "price": "京东价：暂无报价", "img": "http:////img10.360buyimg.com/trial/jfs/t15406/126/2470531777/24675/79c742b9/5a9cd38fNf7bb6fc7.jpg" }, { "id": "250432", "name": "恒源祥 漂白水 漂白剂白色衣服增白 衣物漂白液 瓶装 680ml", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t14365/228/2121969495/195664/4ae5dec8/5a6c4ce6N8d0d79b3.jpg" }, { "id": "250431", "name": "茶信坊茶叶 云南普洱茶生茶 普洱茶饼 易泡饼茶 包邮", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t17620/50/339395671/162955/eba57045/5a6c1923N5ca266f1.jpg" }, { "id": "250428", "name": "茶信坊 普洱茶熟茶  熟普 顺滑型饼茶 易泡饼茶 包邮", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t18829/281/316295412/246320/5d55a97b/5a6c1ae0Nf9282b76.jpg" }, { "id": "250388", "name": "茶信坊 茶叶 生普 普洱茶生茶 易泡饼茶 100克普洱饼茶 包邮", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t17602/111/331880944/292429/3015d4e7/5a6c184fN826fe3de.jpg" }, { "id": "250379", "name": "茵茵 婴儿尿不湿体验装 L 10片 薄乐C 纸尿裤", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t4369/163/2775414664/80949/76383202/58d62d35N9e74cfb5.jpg" }, { "id": "250145", "name": "YBY  苹果/安卓2.1快充充电器适用苹果三星s8/note8小米5/6华为P9P10 白色1A【单口输出】安全高效", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t15832/145/1323822999/191028/16b91d9a/5a4f5b67Ne704f22b.jpg" }, { "id": "250074", "name": "百益佳 茶叶 冰岛02年普洱茶熟茶 老茶头云南糯醇香金芽散茶茶叶", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t8083/142/251432543/266962/817b16bc/59a41c25N2619069f.jpg" }, { "id": "249975", "name": "维芙 瓷砖界面剂 墙面瓷砖瓷背胶 瓷砖胶强力粘合剂瓷砖胶水强力", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t17263/247/602141345/131156/65c1c7f/5a9762d3N1cecf47d.jpg" }, { "id": "249931", "name": "七彩云南 翡翠A货玉佛玉观音吊坠女 和田玉弥勒佛公吊坠 男女款可选 1080玉佛系列", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t16588/220/2154969837/194577/96ae9856/5a966aeaN6a983fe1.jpg" }, { "id": "249711", "name": "TEMPUR泰普尔丹麦进口可水洗馨净枕记忆枕头枕芯颈椎枕可拆卸枕套 标准型单个180929", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t16321/334/2212920568/224417/99c49a20/5a9768c2N547391be.jpg" }, { "id": "249390", "name": "【发1.5斤】茶棵地 茉莉花茶玉螺王 500克礼盒装罐装浓香型花草茶包邮横县2017新茶", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t18295/51/545821193/344877/db18df5f/5a9570ebN60256db8.jpg" }, { "id": "249360", "name": "点酱台 贵州茅台集团白金酒公司 53度 酱香型白酒 500ml 单瓶", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t19033/300/282455529/180203/af947a22/5a68334eNc7bbbd2d.jpg" }, { "id": "249195", "name": "亲好贝好（qinhaobeihao） 亲好贝好 母乳实感宽口径奶嘴 宽口奶嘴婴儿奶瓶奶嘴 S", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t14851/200/2067596275/36021/c4d9591d/5a727475Nd203199f.jpg" }, { "id": "249190", "name": "亲好贝好（qinhaobeihao） 婴幼舒护多效紫草膏25g 止痒化肿防蚊虫紫草油膏 白色", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t11260/342/17242039/330277/11add77/59e5ae6fN872f6761.png" }, { "id": "249075", "name": "【大荔馆】大荔西红柿 番茄 新鲜圣女果2.5kg装", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t17536/194/552282943/396078/d2b8f137/5a94bb2aN179f64b6.jpg" }, { "id": "248955", "name": "【商南扶贫馆】陕西新鲜香菇 蘑菇 菌菇 蔬菜 火锅涮菜 250g第二件半价", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t14545/143/249399609/214706/b30e6279/5a27b669N61d05fbe.jpg" }]
+            }
+        })
+        document.addEventListener('astilectron-ready', function () {
+            // 接受回调信息
+            astilectron.onMessage(function (message) {
+                console.log(message)
+                var data = JSON.parse(message)
+                var cmd = data.cmd
+                if (cmd == 10) {
+                    vm.qrImg = data.data
+                } else if (cmd == 20) {
+                    vm.products = vm.products.concat(data.data)
+                } else if (cmd == 30) {
+                    vm.name = datat.data.name
+                    vm.avatar = datat.data.avatar
+                    vm.isLogin = true
+
+                }
+            })
+            astilectron.sendMessage("getQRImg")
+            astilectron.sendMessage("getProduct")
+        })
+    </script>
+
+</body>
+
+</html>
