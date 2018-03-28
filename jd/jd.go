@@ -259,7 +259,7 @@ func (jd *JD) try(id interface{}) {
 		if dbErr == nil {
 			data, _ := p.Get(idss)
 			if data != "" {
-				jd.option.Callback(&Channel{Cmd: 52, Data: map[string]string{"code": "-1", "id": idss, "message": "您的申请已成功提交，请勿重复申请…"}})
+				jd.option.Callback(&Channel{Cmd: 53, Data: map[string]string{"code": "-1", "id": idss, "message": "您的申请已成功提交，请勿重复申请…"}})
 				return
 			}
 		}

@@ -206,7 +206,8 @@
         <div class="user">
             <img class="avatar" :src="avatar">
             <p class="name">{{name}}</p>
-            <button type="button" class="btn-try btn btn-danger btn-sm" @click="onTryClick">一键试用所有商品</button>
+            <button type="button" class="btn-try btn btn-danger btn-sm" @click="onTryClick" v-if="trying === false">一键试用所有商品</button>
+            <button type="button" class="btn-try btn btn-info btn-sm" disabled v-else>申请中（{{tryCount}}/{{products.length}}）</button>
         </div>
         <table class="table table-striped products" id="products">
             <thead>
@@ -243,6 +244,8 @@
                 loadingTip: '加载商品中，请稍后...',
                 isLogin: true,
                 timeout: false,
+                trying: false,
+                tryCount: 0,
                 name: '未登录',
                 avatar: 'https://i.jd.com/commons/img/no-img_mid_.jpg',
                 qrImg: null,
@@ -261,6 +264,7 @@
                     sendMessage(CMD_QR_IMG)
                 },
                 onTryClick: function () {
+                    this.trying = true
                     this.try()
                 },
                 loadMore: function () {
@@ -283,8 +287,8 @@
                     var me = this
                     setTimeout(function () {
                         sendMessage({ name: 'tryProduct', payload: me.products[tryIdx++].id })
-                        if (tryIdx <= 1) me.try()
-                    }, 1000 * 30)
+                        if (tryIdx <= 4) me.try()
+                    }, 1000 * 10)
                 }
             },
             mounted() {
@@ -335,8 +339,12 @@
                     vm.avatar = data.data.avatar
                     vm.isLogin = true
                 } else if (cmd == 51) {
+                    vm.tryCount++
                     console.log(data)
                 } else if (cmd == 52) {
+                    console.log(data)
+                } else if (cmd == 53) {
+                    vm.tryCount++
                     console.log(data)
                 }
             })

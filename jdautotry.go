@@ -10,9 +10,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Vars
 var (
+	// AppName .
 	AppName string
+	// BuiltAt .
 	BuiltAt string
 	w       *astilectron.Window
 	j       *jd.JD
