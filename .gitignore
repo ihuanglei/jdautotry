@@ -21,4 +21,5 @@ vendor*
 jdautotry
 bind_*
 output
+persistence
 

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -22,7 +23,7 @@ const (
 	// AuthURL .
 	AuthURL = "https://passport.jd.com/uc/qrCodeTicketValidation"
 	// TryURL .
-	TryURL = "http://try.jd.com/migrate/apply?source=0&activityId=253484"
+	TryURL = "http://try.jd.com/migrate/apply?source=0&activityId="
 	// TryProductURL .
 	TryProductURL = "https://try.jd.com/activity/getActivityList"
 	// Referer .
@@ -104,6 +105,7 @@ func (jd *JD) getProducts() {
 		jd.e(err)
 		return
 	}
+	jd.option.Callback(&Channel{Cmd: 21, Data: totalPage})
 
 	// 解析产品数据
 	parseProduct := func(doc *goquery.Document) {
@@ -247,6 +249,72 @@ func (jd *JD) onCheck() {
 	}
 }
 
+func (jd *JD) try(id interface{}) {
+	switch id.(type) {
+	case string:
+		idss := id.(string)
+		p := NewPersistence()
+		dbErr := p.Open()
+		defer p.Close()
+		if dbErr == nil {
+			data, _ := p.Get(idss)
+			if data != "" {
+				jd.option.Callback(&Channel{Cmd: 52, Data: map[string]string{"code": "-1", "id": idss, "message": "您的申请已成功提交，请勿重复申请…"}})
+				return
+			}
+		}
+		url := TryURL + idss
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			jd.e(err)
+			return
+		}
+		req.AddCookie(jd.thorCookie)
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			jd.e(err)
+			return
+		}
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			jd.e(err)
+			return
+		}
+
+		type TryResult struct {
+			Success bool   `json:"success"`
+			Message string `json:"message"`
+			Code    string `json:"code"`
+		}
+
+		var result TryResult
+		if err := json.Unmarshal(body, &result); err != nil {
+			jd.e(err)
+			return
+		}
+
+		fmt.Println(string(body))
+
+		if result.Success {
+			jd.option.Callback(&Channel{Cmd: 51, Data: map[string]string{"code": "1", "id": idss}})
+			if dbErr == nil {
+				p.Put(idss, "1")
+			}
+		} else {
+			if result.Code == "-110" {
+				if dbErr == nil {
+					p.Put(idss, "1")
+				}
+			}
+			jd.option.Callback(&Channel{Cmd: 52, Data: map[string]string{"code": "-1", "id": idss, "message": result.Message}})
+		}
+	default:
+		jd.e(errors.New("试用参数错误"))
+	}
+}
+
 // Send 发送消息
 func (jd *JD) Send(c *Channel) {
 	jd.channal <- *c
@@ -262,6 +330,8 @@ func (jd *JD) onChannel() {
 			go jd.onCheck()
 		case 2:
 			go jd.getProducts()
+		case 5:
+			go jd.try(send.Data)
 		}
 	}
 }
@@ -272,7 +342,7 @@ func (jd *JD) getTimestamp() string {
 }
 
 func (jd *JD) e(err error) {
-	log.Fatalln(err)
+	log.Println(err)
 	jd.option.Callback(&Channel{Cmd: -100, Data: err.Error()})
 }
 

@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 
 	"github.com/asticode/go-astilectron"
 	bootstrap "github.com/asticode/go-astilectron-bootstrap"
@@ -26,15 +26,16 @@ func main() {
 func initJD() {
 	jd, err := jd.New(&jd.Option{Callback: jdCallback})
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println(err.Error())
+		return
 	}
 	j = jd
 }
 
 func initUI() {
 	if err := bootstrap.Run(bootstrap.Options{
-		// Asset:         Asset,
-		// RestoreAssets: RestoreAssets,
+		Asset:         Asset,
+		RestoreAssets: RestoreAssets,
 		AstilectronOptions: astilectron.Options{
 			AppIconDarwinPath:  "resources/icon.icns",
 			AppIconDefaultPath: "resources/icon.png",
@@ -50,9 +51,9 @@ func initUI() {
 		}},
 		OnWait: func(_ *astilectron.Astilectron, iw *astilectron.Window, _ *astilectron.Menu, _ *astilectron.Tray, _ *astilectron.Menu) error {
 			w = iw
-			w.OnMessage(jsCallback)
 			return nil
 		},
+		MessageHandler: handleMessages,
 		WindowOptions: &astilectron.WindowOptions{
 			BackgroundColor: astilectron.PtrStr("#fff"),
 			Center:          astilectron.PtrBool(true),
@@ -60,28 +61,32 @@ func initUI() {
 			Width:           astilectron.PtrInt(700),
 		},
 	}); err != nil {
-		fmt.Println(errors.Wrap(err, "running bootstrap failed"))
+		log.Println(errors.Wrap(err, "running bootstrap failed"))
 	}
 }
 
-// 页面回调
-func jsCallback(m *astilectron.EventMessage) interface{} {
-	var s string
-	m.Unmarshal(&s)
-	fmt.Println(s)
-	if s == "getQRImg" {
+// 消息回调
+func handleMessages(_ *astilectron.Window, m bootstrap.MessageIn) (payload interface{}, err error) {
+	if m.Name == "getQRImg" {
 		j.Send(&jd.Channel{Cmd: 1})
-	} else if s == "getProduct" {
+	} else if m.Name == "getProduct" {
 		j.Send(&jd.Channel{Cmd: 2})
+	} else if m.Name == "tryProduct" {
+		var id string
+		if err = json.Unmarshal(m.Payload, &id); err != nil {
+			jdCallback(&jd.Channel{Cmd: -100, Data: err.Error()})
+			return
+		}
+		j.Send(&jd.Channel{Cmd: 5, Data: id})
 	}
-	return nil
+	return
 }
 
 // 京东回调
 func jdCallback(c *jd.Channel) {
 	bs, err := json.Marshal(c)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 	jsonStr := string(bs)
