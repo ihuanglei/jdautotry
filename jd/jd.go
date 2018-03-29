@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -111,12 +112,16 @@ func (jd *JD) first() {
 	} else {
 		jd.option.Callback(&Channel{Cmd: 21, Data: totalPage})
 		jd.option.Callback(&Channel{Cmd: 23})
+		jd.getProducts(1)
 	}
 	return
 }
 
 // 拉取商品
 func (jd *JD) loadProducts() {
+
+	defer jd.getProducts(1)
+
 	url := TryProductURL
 	resp, err := http.Get(url)
 	if err != nil {
@@ -355,7 +360,7 @@ func (jd *JD) try(id interface{}) {
 			jd.e(err)
 			return
 		}
-
+		fmt.Println(string(body))
 		type TryResult struct {
 			Success bool   `json:"success"`
 			Message string `json:"message"`

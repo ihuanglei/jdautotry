@@ -208,7 +208,7 @@
             <div class="btns">
                 <button type="button" class="btn-refresh btn btn-info btn-sm" @click="onRefreshClick">刷新商品</button>
                 <button type="button" class="btn-try btn btn-danger btn-sm" @click="onTryClick" v-if="trying === false">一键试用所有商品</button>
-                <button type="button" class="btn-try btn btn-info btn-sm" disabled v-else>申请中（{{tryCount}}/{{products.length}}）</button>
+                <button type="button" class="btn-try btn btn-success btn-sm" disabled v-else>申请中（{{tryCount}}/{{products.length}}）</button>
             </div>
         </div>
         <table class="table table-striped products" id="products">
@@ -254,7 +254,7 @@
                 avatar: 'https://i.jd.com/commons/img/no-img_mid_.jpg',
                 qrImg: null,
                 page: 0,
-                totalPage: 0,
+                totalPage: 1,
                 loadPage: 0,
                 count: 20,
                 progress: 0,
@@ -278,9 +278,11 @@
                 onRefreshClick: function () {
                     // 刷新商品
                     this.page = 0
-                    this.totalPage = 0
+                    this.totalPage = 1
                     this.loadPage = 0
+                    this.products = []
                     this.showLoading = true // 显示加载页面
+                    this.loadingTip = '加载商品中，请稍后...'
                     sendMessage(CMD_PRODUCT_LOAD) // 发送加载消息
                 },
                 loadMore: function () {
@@ -302,7 +304,7 @@
                 tryAll: function () {
                     var me = this
                     setTimeout(function () {
-                        sendMessage({ name: 'tryProduct' })
+                        sendMessage({ name: 'tryProduct', id: '' })
                     }, 1000 * 10)
                 }
             },
@@ -323,7 +325,7 @@
                         setTimeout(function () {
                             // 隐藏加载
                             vm.showLoading = false
-                        }, 1500)
+                        }, 1000)
                     }
                 },
                 showLogin: function (n, o) {
@@ -383,6 +385,8 @@
             } else if (cmd == 53) {
                 // 已经申请试用,重复申请
                 vm.tryCount++
+                console.log(data)
+            } else {
                 console.log(data)
             }
         }
