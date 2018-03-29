@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/asticode/go-astilectron"
@@ -68,10 +69,22 @@ func initUI() {
 
 // 消息回调
 func handleMessages(_ *astilectron.Window, m bootstrap.MessageIn) (payload interface{}, err error) {
-	if m.Name == "getQRImg" {
+	fmt.Println(m.Name)
+	if m.Name == "first" {
+		j.Send(&jd.Channel{Cmd: 100})
+	} else if m.Name == "getQRImg" {
 		j.Send(&jd.Channel{Cmd: 1})
-	} else if m.Name == "getProduct" {
+	} else if m.Name == "loadProduct" {
+		// 重新拉取数据
 		j.Send(&jd.Channel{Cmd: 2})
+	} else if m.Name == "getProduct" {
+		// 从数据库中获取商品信息
+		var page int
+		if err = json.Unmarshal(m.Payload, &page); err != nil {
+			jdCallback(&jd.Channel{Cmd: -100, Data: err.Error()})
+			return
+		}
+		j.Send(&jd.Channel{Cmd: 3, Data: page})
 	} else if m.Name == "tryProduct" {
 		var id string
 		if err = json.Unmarshal(m.Payload, &id); err != nil {

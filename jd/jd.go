@@ -4,10 +4,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -58,6 +58,24 @@ type Product struct {
 	Name  string `json:"name"`
 	Price string `json:"price"`
 	Img   string `json:"img"`
+	IsTry int    `json:"is_try"`
+	Page  int    `json:"page"`
+	Idx   int    `json:"idx"`
+}
+
+// SortByProductIdx 根据index排序
+type SortByProductIdx []Product
+
+func (a SortByProductIdx) Len() int {
+	return len(a)
+}
+
+func (a SortByProductIdx) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a SortByProductIdx) Less(i, j int) bool {
+	return a[i].Idx < a[j].Idx
 }
 
 // User 用户信息你
@@ -79,8 +97,26 @@ type JD struct {
 	channal    chan Channel
 }
 
-// 获取商品
-func (jd *JD) getProducts() {
+func (jd *JD) first() {
+	p := NewPersistence()
+	err := p.Open()
+	if err != nil {
+		jd.e(err)
+		return
+	}
+	totalPage, err := p.Get("totalPage")
+	p.Close()
+	if err != nil || totalPage == "" {
+		jd.loadProducts()
+	} else {
+		jd.option.Callback(&Channel{Cmd: 21, Data: totalPage})
+		jd.option.Callback(&Channel{Cmd: 23})
+	}
+	return
+}
+
+// 拉取商品
+func (jd *JD) loadProducts() {
 	url := TryProductURL
 	resp, err := http.Get(url)
 	if err != nil {
@@ -102,32 +138,69 @@ func (jd *JD) getProducts() {
 	// 获取总共多少条数据
 	totalPage, err := strconv.Atoi(doc.Find(".page .p-skip b").Text())
 	if err != nil {
-		jd.e(err)
+		jd.e(errors.New("获取商品失败"))
 		return
 	}
+	totalPage = 6
+	p := NewPersistence()
+	p.Open()
+	defer p.Close()
+	p.Put("totalPage", strconv.Itoa(totalPage))
+	// 返回共多少页
 	jd.option.Callback(&Channel{Cmd: 21, Data: totalPage})
-
+	p.Batch()
 	// 解析产品数据
-	parseProduct := func(doc *goquery.Document) {
-		var products = []Product{}
+	parseProduct := func(page int, doc *goquery.Document) {
 		doc.Find("#goods-list .items .item").Each(func(i int, s *goquery.Selection) {
 			aID, _ := s.Attr("activity_id")
 			name := s.Find(".p-name").Text()
 			price := s.Find(".p-price").Text()
 			img, _ := s.Find(".p-img img").Attr("src")
-			product := Product{AID: aID, Name: name, Price: price, Img: "http://" + img}
-			products = append(products, product)
+			product := Product{AID: aID, Name: name, Price: price, Img: "http:" + img, Page: page, Idx: i}
+			bs, err := json.Marshal(product)
+			if err != nil {
+				jd.e(err)
+				return
+			}
+			p.BatchPutByte("/pro/"+strconv.Itoa(page)+"/"+aID, bs)
 		})
-		jd.option.Callback(&Channel{Cmd: 20, Data: products})
+		// 更新了多少页
+		jd.option.Callback(&Channel{Cmd: 22})
 	}
 
 	// 第一页已经取出 直接使用
-	go parseProduct(doc)
+	parseProduct(1, doc)
 	// 从第二页开始循环
 	for i := 2; i <= totalPage; i++ {
 		productDoc, _ := goquery.NewDocument(url + "?page=" + strconv.Itoa(i))
-		go parseProduct(productDoc)
+		parseProduct(i, productDoc)
 	}
+	if err := p.BatchCommit(); err != nil {
+		jd.e(err)
+	}
+}
+
+// 获取商品数据
+func (jd *JD) getProducts(page int) {
+	p := NewPersistence()
+	err := p.Open()
+	if err != nil {
+		jd.e(err)
+		return
+	}
+	defer p.Close()
+	var products = []Product{}
+	p.ForEach("/pro/"+strconv.Itoa(page)+"/", func(key string, value []byte) {
+		var product Product
+		err := json.Unmarshal(value, &product)
+		if err != nil {
+			jd.e(err)
+			return
+		}
+		products = append(products, product)
+	})
+	sort.Sort(SortByProductIdx(products))
+	jd.option.Callback(&Channel{Cmd: 20, Data: products})
 }
 
 // 获取cookies
@@ -295,7 +368,7 @@ func (jd *JD) try(id interface{}) {
 			return
 		}
 
-		fmt.Println(string(body))
+		// fmt.Println(string(body))
 
 		if result.Success {
 			jd.option.Callback(&Channel{Cmd: 51, Data: map[string]string{"code": "1", "id": idss}})
@@ -325,11 +398,18 @@ func (jd *JD) onChannel() {
 	for {
 		send := <-jd.channal
 		switch send.Cmd {
+		case 100:
+			go jd.first()
 		case 1:
 			go jd.getQRImage()
 			go jd.onCheck()
 		case 2:
-			go jd.getProducts()
+			go jd.loadProducts()
+		case 3:
+			switch send.Data.(type) {
+			case int:
+				go jd.getProducts(send.Data.(int))
+			}
 		case 5:
 			go jd.try(send.Data)
 		}

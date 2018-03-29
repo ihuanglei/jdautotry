@@ -4,11 +4,13 @@ import (
 	"errors"
 
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
 // Persistence 持久化
 type Persistence struct {
-	db *leveldb.DB
+	db    *leveldb.DB
+	batch *leveldb.Batch
 }
 
 // Open 打开数据库
@@ -48,6 +50,43 @@ func (p *Persistence) Get(key string) (string, error) {
 		return "", err
 	}
 	return string(data), nil
+}
+
+// Batch 批量更新
+func (p *Persistence) Batch() {
+	p.batch = new(leveldb.Batch)
+}
+
+// BatchPutString 批量插入字符串
+func (p *Persistence) BatchPutString(key string, value string) error {
+	return p.BatchPutByte(key, []byte(value))
+}
+
+// BatchPutByte 批量插入
+func (p *Persistence) BatchPutByte(key string, value []byte) error {
+	if p.batch == nil {
+		return errors.New("must Batch")
+	}
+	p.batch.Put([]byte(key), value)
+	return nil
+}
+
+// BatchCommit 批量提交
+func (p *Persistence) BatchCommit() error {
+	if p.batch == nil {
+		return errors.New("must Batch")
+	}
+	return p.db.Write(p.batch, nil)
+}
+
+// ForEach 迭代数据
+func (p *Persistence) ForEach(key string, cb func(key string, val []byte)) error {
+	iter := p.db.NewIterator(util.BytesPrefix([]byte(key)), nil)
+	for iter.Next() {
+		cb(string(iter.Key()), iter.Value())
+	}
+	iter.Release()
+	return iter.Error()
 }
 
 // NewPersistence 创建实例
