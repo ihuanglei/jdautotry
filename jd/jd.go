@@ -27,6 +27,10 @@ const (
 	TryURL = "http://try.jd.com/migrate/apply?source=0&activityId="
 	// TryProductURL .
 	TryProductURL = "https://try.jd.com/activity/getActivityList"
+
+	// MyTrial .
+	MyTrial = "https://try.jd.com/user/myTrial"
+
 	// Referer .
 	Referer = "https://passport.jd.com/new/login.aspx"
 
@@ -65,7 +69,7 @@ type Product struct {
 }
 
 // SortByProductIdx 根据index排序
-type SortByProductIdx []Product
+type SortByProductIdx []*Product
 
 func (a SortByProductIdx) Len() int {
 	return len(a)
@@ -92,36 +96,36 @@ type Option struct {
 
 // JD ...
 type JD struct {
-	qrCookie   *jdCookie
-	thorCookie *http.Cookie
-	option     *Option
-	channal    chan Channel
+	qrCookie    *jdCookie
+	thorCookie  *http.Cookie
+	option      *Option
+	channal     chan Channel
+	totalPage   int
+	currentPage int
+	tryProducts []*Product
+	p           *Persistence
 }
 
 func (jd *JD) first() {
-	p := NewPersistence()
-	err := p.Open()
-	if err != nil {
-		jd.e(err)
-		return
-	}
-	totalPage, err := p.Get("totalPage")
-	p.Close()
-	if err != nil || totalPage == "" {
+	totalPageStr, err := jd.p.Get("totalPage")
+	if err != nil || totalPageStr == "" {
+		// 第一次打开，获取数据
+		// 商品数据
 		jd.loadProducts()
 	} else {
-		jd.option.Callback(&Channel{Cmd: 21, Data: totalPage})
+		// 已经保存过数据 直接返回，并且返回第一页数据
+		jd.totalPage, _ = strconv.Atoi(totalPageStr)
+		jd.option.Callback(&Channel{Cmd: 21, Data: jd.totalPage})
 		jd.option.Callback(&Channel{Cmd: 23})
-		jd.getProducts(1)
+		jd.getProductsAndSend(1)
 	}
 	return
 }
 
 // 拉取商品
 func (jd *JD) loadProducts() {
-
-	defer jd.getProducts(1)
-
+	// 延时返回第一页数据
+	defer jd.getProductsAndSend(1)
 	url := TryProductURL
 	resp, err := http.Get(url)
 	if err != nil {
@@ -139,21 +143,17 @@ func (jd *JD) loadProducts() {
 		jd.e(err)
 		return
 	}
-
 	// 获取总共多少条数据
-	totalPage, err := strconv.Atoi(doc.Find(".page .p-skip b").Text())
+	jd.totalPage, err = strconv.Atoi(doc.Find(".page .p-skip b").Text())
 	if err != nil {
 		jd.e(errors.New("获取商品失败"))
 		return
 	}
-	totalPage = 6
-	p := NewPersistence()
-	p.Open()
-	defer p.Close()
-	p.Put("totalPage", strconv.Itoa(totalPage))
+	jd.totalPage = 6
+	jd.p.Put("totalPage", strconv.Itoa(jd.totalPage))
 	// 返回共多少页
-	jd.option.Callback(&Channel{Cmd: 21, Data: totalPage})
-	p.Batch()
+	jd.option.Callback(&Channel{Cmd: 21, Data: jd.totalPage})
+	jd.p.Batch()
 	// 解析产品数据
 	parseProduct := func(page int, doc *goquery.Document) {
 		doc.Find("#goods-list .items .item").Each(func(i int, s *goquery.Selection) {
@@ -167,7 +167,7 @@ func (jd *JD) loadProducts() {
 				jd.e(err)
 				return
 			}
-			p.BatchPutByte("/pro/"+strconv.Itoa(page)+"/"+aID, bs)
+			jd.p.BatchPutByte("/pro/"+strconv.Itoa(page)+"/"+aID, bs)
 		})
 		// 更新了多少页
 		jd.option.Callback(&Channel{Cmd: 22})
@@ -176,36 +176,110 @@ func (jd *JD) loadProducts() {
 	// 第一页已经取出 直接使用
 	parseProduct(1, doc)
 	// 从第二页开始循环
-	for i := 2; i <= totalPage; i++ {
+	for i := 2; i <= jd.totalPage; i++ {
 		productDoc, _ := goquery.NewDocument(url + "?page=" + strconv.Itoa(i))
 		parseProduct(i, productDoc)
 	}
-	if err := p.BatchCommit(); err != nil {
+	if err := jd.p.BatchCommit(); err != nil {
 		jd.e(err)
 	}
 }
 
 // 获取商品数据
-func (jd *JD) getProducts(page int) {
-	p := NewPersistence()
-	err := p.Open()
-	if err != nil {
-		jd.e(err)
-		return
-	}
-	defer p.Close()
-	var products = []Product{}
-	p.ForEach("/pro/"+strconv.Itoa(page)+"/", func(key string, value []byte) {
+func (jd *JD) getProducts(page int) ([]*Product, error) {
+	var products = []*Product{}
+	jd.p.ForEach("/pro/"+strconv.Itoa(page)+"/", func(key string, value []byte) {
 		var product Product
 		err := json.Unmarshal(value, &product)
 		if err != nil {
 			jd.e(err)
 			return
 		}
-		products = append(products, product)
+		products = append(products, &product)
 	})
 	sort.Sort(SortByProductIdx(products))
+	return products, nil
+}
+
+func (jd *JD) getProductsAndSend(page int) {
+	products, err := jd.getProducts(page)
+	if err != nil {
+		jd.e(err)
+		return
+	}
 	jd.option.Callback(&Channel{Cmd: 20, Data: products})
+}
+
+// 我的试用记录
+func (jd *JD) loadMyTrial() {
+
+	// 获取我的试用
+	getMyTrial := func(url string) ([]byte, error) {
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.AddCookie(jd.thorCookie)
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		return body, nil
+	}
+
+	// 解析试用数据
+	parseTrial := func(doc *goquery.Document) {
+		doc.Find("#try-list .list-detail-item").Each(func(i int, s *goquery.Selection) {
+			aID, _ := s.Attr("activity_id")
+			fmt.Println(aID)
+			jd.p.BatchPutString("/try/"+aID, "1")
+		})
+	}
+
+	url := MyTrial
+	// 获取第一页
+	body, err := getMyTrial(url)
+	if err != nil {
+		jd.e(err)
+		return
+	}
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
+	if err != nil {
+		jd.e(err)
+		return
+	}
+	// 获取总共多少条数据
+	totalPage, err := strconv.Atoi(doc.Find(".page .p-skip b").Text())
+	if err != nil {
+		jd.e(errors.New("获取我的试用失败"))
+		return
+	}
+	jd.p.Batch()
+	// 第一页已经取出 直接使用
+	parseTrial(doc)
+	// 从第二页开始循环
+	for i := 2; i <= totalPage; i++ {
+		body, err := getMyTrial(url + "?page=" + strconv.Itoa(i))
+		if err != nil {
+			jd.e(err)
+			return
+		}
+		doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
+		if err != nil {
+			jd.e(err)
+			return
+		}
+		parseTrial(doc)
+	}
+	if err := jd.p.BatchCommit(); err != nil {
+		jd.e(err)
+	}
 }
 
 // 获取cookies
@@ -217,7 +291,6 @@ func (jd *JD) getCookie(ticket string) {
 		return
 	}
 	jd.thorCookie, _ = (&jdCookie{resp.Cookies()}).getCookie("thor")
-	jd.getUser()
 }
 
 // 获取登录二维码
@@ -317,6 +390,10 @@ func (jd *JD) onCheck() {
 		}
 		if result.Code == 200 {
 			jd.getCookie(result.Ticket)
+			// 我的信息
+			go jd.getUser()
+			// 我的试用记录
+			go jd.loadMyTrial()
 			break
 		}
 		if result.Code == 205 || result.Code == 203 {
@@ -331,16 +408,33 @@ func (jd *JD) try(id interface{}) {
 	switch id.(type) {
 	case string:
 		idss := id.(string)
-		p := NewPersistence()
-		dbErr := p.Open()
-		defer p.Close()
-		if dbErr == nil {
-			data, _ := p.Get(idss)
-			if data != "" {
-				jd.option.Callback(&Channel{Cmd: 53, Data: map[string]string{"code": "-1", "id": idss, "message": "您的申请已成功提交，请勿重复申请…"}})
-				return
+		// 没有传id，使用缓存中的商品
+		if idss == "" {
+			for jd.tryProducts == nil || len(jd.tryProducts) == 0 {
+				jd.currentPage++
+				// 获取一条试用产品
+				tmpProducts, err := jd.getProducts(jd.currentPage)
+				if err != nil {
+					jd.e(err)
+					return
+				}
+				for _, tmpProduct := range tmpProducts {
+					data, err := jd.p.Get("/try/" + tmpProduct.AID)
+					if err == nil && data != "" {
+						jd.option.Callback(&Channel{Cmd: 53, Data: map[string]string{"code": "-1", "id": idss, "message": "您的申请已成功提交，请勿重复申请…"}})
+						continue
+					}
+					jd.tryProducts = append(jd.tryProducts, tmpProduct)
+				}
 			}
+			product := jd.tryProducts[0]
+			jd.tryProducts = append(jd.tryProducts[1:])
+			idss = product.AID
 		}
+		if idss == "" {
+			return
+		}
+		// 提交申请请求
 		url := TryURL + idss
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
@@ -372,21 +466,16 @@ func (jd *JD) try(id interface{}) {
 			jd.e(err)
 			return
 		}
-
-		// fmt.Println(string(body))
-
 		if result.Success {
 			jd.option.Callback(&Channel{Cmd: 51, Data: map[string]string{"code": "1", "id": idss}})
-			if dbErr == nil {
-				p.Put(idss, "1")
-			}
+			jd.p.Put("/try/"+idss, "1")
 		} else {
 			if result.Code == "-110" {
-				if dbErr == nil {
-					p.Put(idss, "1")
-				}
+				jd.p.Put("/try/"+idss, "1")
+				jd.option.Callback(&Channel{Cmd: 53, Data: map[string]string{"code": "-1", "id": idss, "message": "您的申请已成功提交，请勿重复申请…"}})
+			} else {
+				jd.option.Callback(&Channel{Cmd: 52, Data: map[string]string{"code": "-1", "id": idss, "message": result.Message}})
 			}
-			jd.option.Callback(&Channel{Cmd: 52, Data: map[string]string{"code": "-1", "id": idss, "message": result.Message}})
 		}
 	default:
 		jd.e(errors.New("试用参数错误"))
@@ -413,7 +502,7 @@ func (jd *JD) onChannel() {
 		case 3:
 			switch send.Data.(type) {
 			case int:
-				go jd.getProducts(send.Data.(int))
+				go jd.getProductsAndSend(send.Data.(int))
 			}
 		case 5:
 			go jd.try(send.Data)
@@ -436,7 +525,11 @@ func New(option *Option) (*JD, error) {
 	if option == nil || option.Callback == nil {
 		return nil, errors.New("参数不能为空")
 	}
-	jd := JD{option: option, channal: make(chan Channel)}
+	jd := JD{option: option, channal: make(chan Channel), p: NewPersistence()}
+	err := jd.p.Open()
+	if err != nil {
+		return nil, err
+	}
 	go jd.onChannel()
 	return &jd, nil
 }

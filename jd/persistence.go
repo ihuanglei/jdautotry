@@ -3,8 +3,8 @@ package jd
 import (
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -18,11 +18,27 @@ type Persistence struct {
 
 // Open 打开数据库
 func (p *Persistence) Open() error {
-	file, _ := exec.LookPath(os.Args[0])
-	applicationPath, _ := filepath.Abs(file)
-	applicationDir, _ := filepath.Split(applicationPath)
+
 	var err error
-	p.db, err = leveldb.OpenFile(applicationDir+"/persistence", nil)
+
+	getCurrentDirectory := func() (string, error) {
+		dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+		if err != nil {
+			return "", err
+		}
+		return strings.Replace(dir, "\\", "/", -1), nil
+	}
+
+	path, err := getCurrentDirectory()
+	if err != nil {
+		return err
+	}
+
+	// file, _ := exec.LookPath(os.Args[0])
+	// applicationPath, _ := filepath.Abs(file)
+	// applicationDir, _ := filepath.Split(applicationPath)
+
+	p.db, err = leveldb.OpenFile(path+"/persistence", nil)
 	if err != nil {
 		return err
 	}

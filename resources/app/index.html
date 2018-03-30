@@ -180,11 +180,34 @@
         .progress {
             width: 50%;
         }
+
+        .trying {
+            position: fixed;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, .5);
+            z-index: 110;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .trying>p {
+            font-size: 80px;
+            color: #fff;
+        }
     </style>
 </head>
 
 <body>
-    <div id="app" :style="{position: showLoading ? 'absolute': ''}">
+    <div id="app" :style="{position: noScroller ? 'absolute': ''}">
+        <div class="trying" v-if="trying === true">
+            <p>{{tryCount}}</p>
+            <button type="button" class="btn-refresh btn btn-danger btn-sm" @click="onStopTryClick">取消申请</button>
+        </div>
         <div class="loading" v-if="showLoading">
             <p>{{loadingTip}}</p>
             <div class="progress">
@@ -207,8 +230,7 @@
             <p class="name">{{name}}</p>
             <div class="btns">
                 <button type="button" class="btn-refresh btn btn-info btn-sm" @click="onRefreshClick">刷新商品</button>
-                <button type="button" class="btn-try btn btn-danger btn-sm" @click="onTryClick" v-if="trying === false">一键试用所有商品</button>
-                <button type="button" class="btn-try btn btn-success btn-sm" disabled v-else>申请中（{{tryCount}}/{{products.length}}）</button>
+                <button type="button" class="btn-try btn btn-success btn-sm" @click="onTryClick">一键试用所有商品</button>
             </div>
         </div>
         <table class="table table-striped products" id="products">
@@ -240,9 +262,12 @@
 
         var tryIdx = 0
 
+        var lastTimeHandle = undefined
+
         var vm = new Vue({
             el: '#app',
             data: {
+                noScroller: false,
                 showLoading: true,
                 loadingTip: '加载商品中，请稍后...',
                 showLogin: false,
@@ -275,6 +300,12 @@
                     this.trying = true
                     this.tryAll()
                 },
+                onStopTryClick: function () {
+                    clearTimeout(lastTimeHandle)
+                    this.trying = false
+                    this.noScroller = false
+                    lastTimeHandle = undefined
+                },
                 onRefreshClick: function () {
                     // 刷新商品
                     this.page = 0
@@ -282,6 +313,7 @@
                     this.loadPage = 0
                     this.products = []
                     this.showLoading = true // 显示加载页面
+                    this.noScroller = true
                     this.loadingTip = '加载商品中，请稍后...'
                     sendMessage(CMD_PRODUCT_LOAD) // 发送加载消息
                 },
@@ -289,7 +321,7 @@
                     if (this.page < this.totalPage)
                         this.page++
                 },
-                scrollBottom: function (e) {
+                onScrollToBottom: function (e) {
                     // 可滑动区域高度
                     var scrollHeight = window.document.body.scrollHeight
                     // 滚动条距顶部高度
@@ -303,13 +335,15 @@
                 },
                 tryAll: function () {
                     var me = this
-                    setTimeout(function () {
-                        sendMessage({ name: 'tryProduct', id: '' })
-                    }, 1000 * 10)
+                    this.noScroller = true
+                    sendMessage({ name: 'tryProduct', payload: '' })
+                    lastTimeHandle = setTimeout(function () {
+                        me.tryAll()
+                    }, 1500 * 10)
                 }
             },
             mounted() {
-                window.addEventListener('scroll', this.scrollBottom)
+                window.addEventListener('scroll', this.onScrollToBottom)
             },
             watch: {
                 page: function (n, o) {
@@ -325,6 +359,7 @@
                         setTimeout(function () {
                             // 隐藏加载
                             vm.showLoading = false
+                            vm.noScroller = false
                         }, 1000)
                     }
                 },
