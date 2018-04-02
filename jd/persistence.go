@@ -74,6 +74,14 @@ func (p *Persistence) Get(key string) (string, error) {
 	return string(data), nil
 }
 
+// Has 是否存在key
+func (p *Persistence) Has(key string) (bool, error) {
+	if p.db == nil {
+		return false, errors.New("db not open")
+	}
+	return p.db.Has([]byte(key), nil)
+}
+
 // Batch 批量更新
 func (p *Persistence) Batch() {
 	p.batch = new(leveldb.Batch)

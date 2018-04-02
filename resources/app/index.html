@@ -133,9 +133,13 @@
             border-radius: 5px;
         }
 
-        .products {
+        .content-wrap {
             margin-top: 110px;
+        }
+
+        .products {
             background-color: #fff;
+            padding-top: 20px;
         }
 
         .pager {
@@ -204,10 +208,14 @@
 
 <body>
     <div id="app" :style="{position: noScroller ? 'absolute': ''}">
+
+        <!--  -->
         <div class="trying" v-if="trying === true">
             <p>{{tryCount}}</p>
             <button type="button" class="btn-refresh btn btn-danger btn-sm" @click="onStopTryClick">取消申请</button>
         </div>
+
+        <!-- 加载商品进度 -->
         <div class="loading" v-if="showLoading">
             <p>{{loadingTip}}</p>
             <div class="progress">
@@ -215,6 +223,8 @@
             </div>
             <p class="copyright">© https://github.com/ihuanglei</p>
         </div>
+
+        <!-- 扫码登录 -->
         <div class="qr-img-wrap" v-if="showLogin">
             <div>
                 <img class="qr-img" :src="qrImg">
@@ -225,40 +235,68 @@
 
             <p>扫描二维码登录</p>
         </div>
+
+        <!-- 用户信息 -->
         <div class="user">
             <img class="avatar" :src="avatar">
             <p class="name">{{name}}</p>
             <div class="btns">
-                <button type="button" class="btn-refresh btn btn-info btn-sm" @click="onRefreshClick">刷新商品</button>
+                <button type="button" class="btn-refresh btn btn-info btn-sm" @click="onRefreshProductClick">刷新商品</button>
                 <button type="button" class="btn-try btn btn-success btn-sm" @click="onTryClick">一键试用所有商品</button>
             </div>
         </div>
-        <table class="table table-striped products" id="products">
-            <thead>
-                <tr>
-                    <th>图片</th>
-                    <th>商品名称</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="product in products" :data-id="product.id">
-                    <th>
-                        <img class="img" :src="product.img">
-                    </th>
-                    <td>{{product.name}}</td>
-                </tr>
-            </tbody>
-        </table>
-        <div class="pager">
-            <p>第{{page}}/{{totalPage}}页</p>
+
+        <!-- 主内容 -->
+        <div class="content-wrap">
+            <!-- 导航 -->
+            <ul class="nav nav-tabs">
+                <li class="nav-item">
+                    <a class="nav-link active" href="javascript:;">试用商品</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="javascript:;">我的试用</a>
+                </li>
+            </ul>
+            <!-- 商品列表 -->
+            <div class="products">
+                <table class="table table-striped" id="products">
+                    <thead>
+                        <tr>
+                            <th>图片</th>
+                            <th>商品名称</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="product in products" :data-id="product.id">
+                            <th>
+                                <img class="img" :src="product.img">
+                            </th>
+                            <td>{{product.name}}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="pager">
+                    <p>第{{page}}/{{totalPage}}页</p>
+                </div>
+            </div>
         </div>
     </div>
+
     <script src="https://cdn.bootcss.com/vue/2.5.16/vue.min.js"></script>
     <script>
-        var first = true
-        var CMD_QR_IMG = { name: 'getQRImg' }
-        var CMD_FIRST = { name: 'first' }
-        var CMD_PRODUCT_LOAD = { name: 'loadProduct' }
+        var CMD_FIRST = 'cmd_first'
+        var CMD_LOGIN_QR = 'cmd_login_qr'
+        var CMD_LOGIN_QR_TIMEOUT = 'cmd_login_qr_timeout'
+        var CMD_TOTAL_PAGE = 'cmd_total_page'
+        var CMD_LOAD_PAGE = 'cmd_load_page'
+        var CMD_PRODUCT_LOAD_ALL = 'cmd_product_load_all'
+        var CMD_PRODUCT_LOAD = 'cmd_product_load'
+        var CMD_TRY = 'cmd_try'
+        var CMD_MY_TRIAL_LOAD = 'cmd_my_trial_load'
+        var CMD_MY_TRIAL_LOAD_All = 'cmd_my_trial_load_all'
+        var CMD_MY_INFO = 'cmd_my_info'
+        var CMD_TRY_SUCCESS = 'cmd_try_success'
+        var CMD_TRY_ALREADY = 'cmd_try_already'
 
         var tryIdx = 0
 
@@ -267,57 +305,69 @@
         var vm = new Vue({
             el: '#app',
             data: {
+                // loading 页面
+                progress: 0,
                 noScroller: false,
-                showLoading: true,
+                totalPage: 1,
+                loadPage: 0,
+                showLoading: false,
                 loadingTip: '加载商品中，请稍后...',
+
+                // 登录
                 showLogin: false,
                 isLogin: false,
                 timeout: false,
+                qrImg: null,
+
+                // 试用
                 trying: false,
                 tryCount: 0,
+
+                // 用户信息
                 name: '未登录',
                 avatar: 'https://i.jd.com/commons/img/no-img_mid_.jpg',
-                qrImg: null,
+
+                // 每页显示及试用数据
                 page: 0,
-                totalPage: 1,
-                loadPage: 0,
                 count: 20,
-                progress: 0,
-                //[{ "id": "252077", "name": "天玺妙香 趣味蚂蚁线香插 创意沉香檀香线香座香炉香道茶道摆件茶宠 食香蚁-红铜色", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t16216/72/1271885439/389001/6e86c15/5a4f3e78Nee4e8155.jpg" }, { "id": "251936", "name": "360度旋转 麦凯儿童安全座椅汽车用0-4岁新生婴儿宝宝座椅可躺座椅ISOFIX硬接口 天蓝色", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t19024/203/588421843/474580/93246c12/5a9a3dd9Nb1903f99.jpg" }, { "id": "251647", "name": "【沂蒙馆】孙武宴 山东蒙山特产五香酱驴肉200g 熟食即食驴肉火烧", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t13147/357/1969056549/470015/71c8a0ec/5a322abcNaa9851c9.jpg" }, { "id": "251618", "name": "京东叮咚(DingDong) 2代人工智能音箱新旗舰 迷你蓝牙/WIFI音响 海量应用内容 语音操控家电 北欧灰", "price": "京东价：暂无报价", "img": "http:////img10.360buyimg.com/trial/jfs/t15406/126/2470531777/24675/79c742b9/5a9cd38fNf7bb6fc7.jpg" }, { "id": "250432", "name": "恒源祥 漂白水 漂白剂白色衣服增白 衣物漂白液 瓶装 680ml", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t14365/228/2121969495/195664/4ae5dec8/5a6c4ce6N8d0d79b3.jpg" }, { "id": "250431", "name": "茶信坊茶叶 云南普洱茶生茶 普洱茶饼 易泡饼茶 包邮", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t17620/50/339395671/162955/eba57045/5a6c1923N5ca266f1.jpg" }, { "id": "250428", "name": "茶信坊 普洱茶熟茶  熟普 顺滑型饼茶 易泡饼茶 包邮", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t18829/281/316295412/246320/5d55a97b/5a6c1ae0Nf9282b76.jpg" }, { "id": "250388", "name": "茶信坊 茶叶 生普 普洱茶生茶 易泡饼茶 100克普洱饼茶 包邮", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t17602/111/331880944/292429/3015d4e7/5a6c184fN826fe3de.jpg" }, { "id": "250379", "name": "茵茵 婴儿尿不湿体验装 L 10片 薄乐C 纸尿裤", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t4369/163/2775414664/80949/76383202/58d62d35N9e74cfb5.jpg" }, { "id": "250145", "name": "YBY  苹果/安卓2.1快充充电器适用苹果三星s8/note8小米5/6华为P9P10 白色1A【单口输出】安全高效", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t15832/145/1323822999/191028/16b91d9a/5a4f5b67Ne704f22b.jpg" }, { "id": "250074", "name": "百益佳 茶叶 冰岛02年普洱茶熟茶 老茶头云南糯醇香金芽散茶茶叶", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t8083/142/251432543/266962/817b16bc/59a41c25N2619069f.jpg" }, { "id": "249975", "name": "维芙 瓷砖界面剂 墙面瓷砖瓷背胶 瓷砖胶强力粘合剂瓷砖胶水强力", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t17263/247/602141345/131156/65c1c7f/5a9762d3N1cecf47d.jpg" }, { "id": "249931", "name": "七彩云南 翡翠A货玉佛玉观音吊坠女 和田玉弥勒佛公吊坠 男女款可选 1080玉佛系列", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t16588/220/2154969837/194577/96ae9856/5a966aeaN6a983fe1.jpg" }, { "id": "249711", "name": "TEMPUR泰普尔丹麦进口可水洗馨净枕记忆枕头枕芯颈椎枕可拆卸枕套 标准型单个180929", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t16321/334/2212920568/224417/99c49a20/5a9768c2N547391be.jpg" }, { "id": "249390", "name": "【发1.5斤】茶棵地 茉莉花茶玉螺王 500克礼盒装罐装浓香型花草茶包邮横县2017新茶", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t18295/51/545821193/344877/db18df5f/5a9570ebN60256db8.jpg" }, { "id": "249360", "name": "点酱台 贵州茅台集团白金酒公司 53度 酱香型白酒 500ml 单瓶", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t19033/300/282455529/180203/af947a22/5a68334eNc7bbbd2d.jpg" }, { "id": "249195", "name": "亲好贝好（qinhaobeihao） 亲好贝好 母乳实感宽口径奶嘴 宽口奶嘴婴儿奶瓶奶嘴 S", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t14851/200/2067596275/36021/c4d9591d/5a727475Nd203199f.jpg" }, { "id": "249190", "name": "亲好贝好（qinhaobeihao） 婴幼舒护多效紫草膏25g 止痒化肿防蚊虫紫草油膏 白色", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t11260/342/17242039/330277/11add77/59e5ae6fN872f6761.png" }, { "id": "249075", "name": "【大荔馆】大荔西红柿 番茄 新鲜圣女果2.5kg装", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t17536/194/552282943/396078/d2b8f137/5a94bb2aN179f64b6.jpg" }, { "id": "248955", "name": "【商南扶贫馆】陕西新鲜香菇 蘑菇 菌菇 蔬菜 火锅涮菜 250g第二件半价", "price": "京东价：暂无报价", "img": "http:////img30.360buyimg.com/pop/s400x400_jfs/t14545/143/249399609/214706/b30e6279/5a27b669N61d05fbe.jpg" }]
-                products: []
+                products: [], // 试用商品
+                myTrials: [] // 我申请的试用商品
             },
             methods: {
                 onRefreshQRClick: function () {
-                    // 刷新登录二维码
-                    sendMessage(CMD_QR_IMG)
+                    // 刷新二维码
+                    this.showLoadingQR()
                 },
                 onTryClick: function () {
+                    // 一键试用
                     if (this.trying) return
                     if (!this.isLogin) {
-                        vm.showLogin = true
+                        this.showLogin = true
                         return
                     }
                     this.trying = true
-                    this.tryAll()
+                    this.try()
                 },
                 onStopTryClick: function () {
+                    // 暂停试用
                     clearTimeout(lastTimeHandle)
                     this.trying = false
                     this.noScroller = false
                     lastTimeHandle = undefined
                 },
-                onRefreshClick: function () {
+                onRefreshProductClick: function () {
                     // 刷新商品
                     this.page = 0
-                    this.totalPage = 1
-                    this.loadPage = 0
                     this.products = []
-                    this.showLoading = true // 显示加载页面
-                    this.noScroller = true
-                    this.loadingTip = '加载商品中，请稍后...'
-                    sendMessage(CMD_PRODUCT_LOAD) // 发送加载消息
+                    this.resetLoading()
+                    this.loadAllProduct()
                 },
-                loadMore: function () {
+                onRefreshMyTrialClick: function () {
+                    // 刷新试用
+                    this.resetLoading()
+                    this.loadAllMyTrial()
+                },
+                onLoadMore: function () {
                     if (this.page < this.totalPage)
                         this.page++
                 },
@@ -330,16 +380,39 @@
                     var clientHeight = window.document.documentElement.clientHeight
                     var scrolled = scrollTop + clientHeight
                     if (scrolled >= scrollHeight) {
-                        this.loadMore()
+                        this.onLoadMore()
                     }
                 },
-                tryAll: function () {
-                    var me = this
-                    this.noScroller = true
-                    sendMessage({ name: 'tryProduct', payload: '' })
+                resetLoading: function () {
+                    this.totalPage = 1 // 总页数为1
+                    this.loadPage = 0  // 加载页数为0
+                    this.showLoading = true // 显示加载页面
+                    this.noScroller = true // 不显示滚动条
+                    this.loadingTip = '数据加载中，请稍后...'
+                },
+                try: function () {
+                    // 一键试用
                     lastTimeHandle = setTimeout(function () {
-                        me.tryAll()
+                        sendMessage(CMD_TRY)
                     }, 1500 * 10)
+                },
+                loadAllProduct: function () {
+                    // 重新加载所有试用商品
+                    sendMessage(CMD_PRODUCT_LOAD_ALL)
+                },
+                loadProduct: function (page) {
+                    // 加载试用商品
+                    sendMessage(CMD_PRODUCT_LOAD, page)
+                },
+                loadAllMyTrial: function () {
+                    sendMessage(CMD_MY_TRIAL_LOAD_All)
+                },
+                loadMyTrial: function (page) {
+                    // 加载已经申请的试用商品
+                    sendMessage(CMD_MY_TRIAL_LOAD, page)
+                },
+                showLoadingQR: function () {
+                    sendMessage(CMD_LOGIN_QR)
                 }
             },
             mounted() {
@@ -349,7 +422,7 @@
                 page: function (n, o) {
                     // 分页加载信息
                     if (n == 0) return
-                    sendMessage({ name: 'getProduct', payload: n })
+                    this.loadProduct(n)
                 },
                 loadPage: function (n, o) {
                     // 加载所有商品数据进度
@@ -364,13 +437,14 @@
                     }
                 },
                 showLogin: function (n, o) {
-                    if (n === true)
-                        sendMessage(CMD_QR_IMG)
+                    if (n === true) {
+                        this.noScroller = true
+                        this.showLoadingQR()
+                    }
                 }
             }
         })
 
-        // GO 通讯
         document.addEventListener('astilectron-ready', function () {
             init()
         })
@@ -385,49 +459,45 @@
             // console.log(message)
             var data = JSON.parse(message)
             var cmd = data.cmd
-            if (cmd == 10) {
-                // 有登录二维码消息来，说明要求登录，显示扫描
+            if (cmd == CMD_LOGIN_QR) {
+                // 有登录二维码消息来，说明要求登录，显示二维码
                 vm.qrImg = data.data
                 if (vm.timeout === true)
                     vm.timeout = false
-            } else if (cmd == 11) {
+            } else if (cmd == CMD_LOGIN_QR_TIMEOUT) {
                 // 超时显示重新获取二维码
                 vm.timeout = true
-            } else if (cmd == 20) {
-                // 加载商品数据
-                vm.products.push.apply(vm.products, data.data)
-            } else if (cmd == 21) {
+            } else if (cmd == CMD_TOTAL_PAGE) {
                 // 加载商品总页数
                 vm.totalPage = data.data
-            } else if (cmd == 22) {
-                // 加载商品已经拉取的页数
-                vm.loadPage++
-            } else if (cmd == 23) {
-                //直接加载完成
-                vm.loadPage = vm.totalPage
-            } else if (cmd == 30) {
+            } else if (cmd == CMD_LOAD_PAGE) {
+                // 加载商品已经获取的页数
+                vm.loadPage = data.data
+            } else if (cmd == CMD_PRODUCT_LOAD) {
+                // 加载商品数据
+                vm.products.push.apply(vm.products, data.data)
+            } else if (cmd == CMD_MY_INFO) {
                 // 加载用户信息
                 vm.name = data.data.name
                 vm.avatar = data.data.avatar
                 vm.isLogin = true
                 vm.showLogin = false
-            } else if (cmd == 51) {
+                vm.noScroller = false
+            } else if (cmd == CMD_TRY_SUCCESS) {
                 // 成功申请试用
                 vm.tryCount++
-                console.log(data)
             } else if (cmd == 52) {
                 console.log(data)
-            } else if (cmd == 53) {
+            } else if (cmd == CMD_TRY_ALREADY) {
                 // 已经申请试用,重复申请
                 vm.tryCount++
-                console.log(data)
             } else {
                 console.log(data)
             }
         }
 
-        function sendMessage(cmd) {
-            astilectron.sendMessage(cmd)
+        function sendMessage(cmd, data) {
+            astilectron.sendMessage({ name: cmd, payload: data })
         }
 
     </script>
