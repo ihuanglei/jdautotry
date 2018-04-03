@@ -45,6 +45,28 @@ func (p *Persistence) Open() error {
 	return nil
 }
 
+// Delete 删除数据
+func (p *Persistence) Delete(key []byte) error {
+	if p.db == nil {
+		return errors.New("db not open")
+	}
+	p.db.Delete([]byte(key), nil)
+	return nil
+}
+
+// DeleteByPrefix 根据KEY前缀删除
+func (p *Persistence) DeleteByPrefix(key string) error {
+	if p.db == nil {
+		return errors.New("db not open")
+	}
+	iter := p.db.NewIterator(util.BytesPrefix([]byte(key)), nil)
+	for iter.Next() {
+		p.Delete(iter.Key())
+	}
+	iter.Release()
+	return iter.Error()
+}
+
 // Close 关闭数据库
 func (p *Persistence) Close() error {
 	if p.db == nil {
@@ -59,7 +81,15 @@ func (p *Persistence) Put(key string, value string) error {
 	if p.db == nil {
 		return errors.New("db not open")
 	}
-	return p.db.Put([]byte(key), []byte(value), nil)
+	return p.PutByte(key, []byte(value))
+}
+
+// PutByte 插入数据
+func (p *Persistence) PutByte(key string, b []byte) error {
+	if p.db == nil {
+		return errors.New("db not open")
+	}
+	return p.db.Put([]byte(key), b, nil)
 }
 
 // Get 获取数据
@@ -80,6 +110,19 @@ func (p *Persistence) Has(key string) (bool, error) {
 		return false, errors.New("db not open")
 	}
 	return p.db.Has([]byte(key), nil)
+}
+
+// SizeOf 大小
+func (p *Persistence) SizeOf(key string) (int64, error) {
+	if p.db == nil {
+		return 0, errors.New("db not open")
+	}
+	r := *util.BytesPrefix([]byte(key))
+	size, err := p.db.SizeOf([]util.Range{r})
+	if err != nil {
+		return 0, err
+	}
+	return size.Sum(), nil
 }
 
 // Batch 批量更新

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/asticode/go-astilectron"
@@ -14,23 +15,25 @@ var (
 	// AppName .
 	AppName string
 	// BuiltAt .
-	BuiltAt string
-	w       *astilectron.Window
-	j       *jd.JD
+	BuiltAt  string
+	win      *astilectron.Window
+	jdClient *jd.JD
+	tray     *astilectron.Tray
 )
 
 func main() {
-	initJD()
+	initJDClient()
 	initUI()
 }
 
-func initJD() {
-	jd, err := jd.New(&jd.Option{Callback: jdCallback})
+func initJDClient() {
+	var err error
+	jdClient, err = jd.New(&jd.Option{Callback: jdCallback})
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
-	j = jd
+
 }
 
 func initUI() {
@@ -43,15 +46,24 @@ func initUI() {
 		},
 		Debug:    true,
 		Homepage: "index.html",
-		MenuOptions: []*astilectron.MenuItemOptions{{
-			Label: astilectron.PtrStr("File"),
-			SubMenu: []*astilectron.MenuItemOptions{
-				{Label: astilectron.PtrStr("About")},
-				{Role: astilectron.MenuItemRoleClose},
+		TrayMenuOptions: []*astilectron.MenuItemOptions{{
+			Label: astilectron.PtrStr("关于"),
+			OnClick: func(e astilectron.Event) (deleteListener bool) {
+				fmt.Println("我来了")
+				return
 			},
 		}},
-		OnWait: func(_ *astilectron.Astilectron, iw *astilectron.Window, _ *astilectron.Menu, _ *astilectron.Tray, _ *astilectron.Menu) error {
-			w = iw
+		TrayOptions: &astilectron.TrayOptions{Image: astilectron.PtrStr("resources/icon.png"), Tooltip: astilectron.PtrStr("京东试用")},
+		OnWait: func(_ *astilectron.Astilectron, iw *astilectron.Window, _ *astilectron.Menu, tray *astilectron.Tray, _ *astilectron.Menu) error {
+			win = iw
+			iw.On(astilectron.EventNameWindowEventMinimize, func(event astilectron.Event) (deleteListener bool) {
+				win.Hide()
+				return
+			})
+			tray.On(astilectron.EventNameTrayEventClicked, func(event astilectron.Event) (deleteListener bool) {
+				win.Show()
+				return
+			})
 			return nil
 		},
 		MessageHandler: handleMessages,
@@ -59,7 +71,9 @@ func initUI() {
 			BackgroundColor: astilectron.PtrStr("#fff"),
 			Center:          astilectron.PtrBool(true),
 			Height:          astilectron.PtrInt(700),
-			Width:           astilectron.PtrInt(700),
+			Width:           astilectron.PtrInt(800),
+			AutoHideMenuBar: astilectron.PtrBool(true),
+			Maximizable:     astilectron.PtrBool(false),
 		},
 	}); err != nil {
 		log.Println(errors.Wrap(err, "running bootstrap failed"))
@@ -67,8 +81,11 @@ func initUI() {
 }
 
 // 消息回调
-func handleMessages(_ *astilectron.Window, m bootstrap.MessageIn) (payload interface{}, err error) {
-	j.Send(m.Name, m.Payload)
+func handleMessages(iw *astilectron.Window, m bootstrap.MessageIn) (payload interface{}, err error) {
+	if win == nil {
+		win = iw
+	}
+	jdClient.Send(m.Name, m.Payload)
 	return
 }
 
@@ -81,6 +98,6 @@ func jdCallback(c *jd.Channel) {
 	}
 	jsonStr := string(bs)
 	// log.Println(jsonStr)
-	w.SendMessage(jsonStr, func(m *astilectron.EventMessage) {
+	win.SendMessage(jsonStr, func(m *astilectron.EventMessage) {
 	})
 }

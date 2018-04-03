@@ -139,7 +139,7 @@
 
         .products {
             background-color: #fff;
-            padding-top: 20px;
+            /* padding-top: 20px; */
         }
 
         .pager {
@@ -185,34 +185,23 @@
             width: 50%;
         }
 
-        .trying {
+        .try-tip {
             position: fixed;
-            left: 0;
-            top: 0;
-            right: 0;
             bottom: 0;
-            background-color: rgba(0, 0, 0, .5);
-            z-index: 110;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-        }
-
-        .trying>p {
-            font-size: 80px;
-            color: #fff;
+            left: 0;
+            right: 0;
+            margin: 0;
+            border-radius: 0;
+            background-color: rgba(212, 237, 218, .8)
         }
     </style>
 </head>
 
 <body>
-    <div id="app" :style="{position: noScroller ? 'absolute': ''}">
+    <div id="app" :style="{position: noScroller ? 'absolute': ''}" v-cloak>
 
-        <!--  -->
-        <div class="trying" v-if="trying === true">
-            <p>{{tryCount}}</p>
-            <button type="button" class="btn-refresh btn btn-danger btn-sm" @click="onStopTryClick">取消申请</button>
+        <div class="alert alert-success try-tip" role="alert" v-if="isLogin === true">
+            {{tryCount}}
         </div>
 
         <!-- 加载商品进度 -->
@@ -232,7 +221,6 @@
                     <span>过期刷新</span>
                 </a>
             </div>
-
             <p>扫描二维码登录</p>
         </div>
 
@@ -242,21 +230,22 @@
             <p class="name">{{name}}</p>
             <div class="btns">
                 <button type="button" class="btn-refresh btn btn-info btn-sm" @click="onRefreshProductClick">刷新商品</button>
-                <button type="button" class="btn-try btn btn-success btn-sm" @click="onTryClick">一键试用所有商品</button>
+                <button type="button" class="btn-try btn btn-success btn-sm" @click="onTryClick" v-if="trying === false">一键试用所有商品</button>
+                <button type="button" class="btn-try btn btn-danger btn-sm" @click="onStopTryClick" v-else>暂停试用</button>
             </div>
         </div>
 
         <!-- 主内容 -->
         <div class="content-wrap">
             <!-- 导航 -->
-            <ul class="nav nav-tabs">
+            <!-- <ul class="nav nav-tabs">
                 <li class="nav-item">
                     <a class="nav-link active" href="javascript:;">试用商品</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="javascript:;">我的试用</a>
                 </li>
-            </ul>
+            </ul> -->
             <!-- 商品列表 -->
             <div class="products">
                 <table class="table table-striped" id="products">
@@ -276,7 +265,7 @@
                     </tbody>
                 </table>
                 <div class="pager">
-                    <p>第{{page}}/{{totalPage}}页</p>
+                    <p>第{{page}}/{{productTotalPage}}页</p>
                 </div>
             </div>
         </div>
@@ -284,19 +273,21 @@
 
     <script src="https://cdn.bootcss.com/vue/2.5.16/vue.min.js"></script>
     <script>
-        var CMD_FIRST = 'cmd_first'
-        var CMD_LOGIN_QR = 'cmd_login_qr'
-        var CMD_LOGIN_QR_TIMEOUT = 'cmd_login_qr_timeout'
-        var CMD_TOTAL_PAGE = 'cmd_total_page'
-        var CMD_LOAD_PAGE = 'cmd_load_page'
-        var CMD_PRODUCT_LOAD_ALL = 'cmd_product_load_all'
-        var CMD_PRODUCT_LOAD = 'cmd_product_load'
-        var CMD_TRY = 'cmd_try'
-        var CMD_MY_TRIAL_LOAD = 'cmd_my_trial_load'
-        var CMD_MY_TRIAL_LOAD_All = 'cmd_my_trial_load_all'
-        var CMD_MY_INFO = 'cmd_my_info'
-        var CMD_TRY_SUCCESS = 'cmd_try_success'
-        var CMD_TRY_ALREADY = 'cmd_try_already'
+        let CMD_FIRST = 'cmd_first'
+        let CMD_LOGIN_QR = 'cmd_login_qr'
+        let CMD_LOGIN_QR_TIMEOUT = 'cmd_login_qr_timeout'
+        let CMD_TOTAL_PAGE = 'cmd_total_page'
+        let CMD_LOAD_PAGE = 'cmd_load_page'
+        let CMD_TOTAL_PAGE_PRODUCT = 'cmd_total_page_product'
+        let CMD_PRODUCT_LOAD_ALL = 'cmd_product_load_all'
+        let CMD_PRODUCT_LOAD = 'cmd_product_load'
+        let CMD_TRY = 'cmd_try'
+        let CMD_MY_TRIAL_LOAD = 'cmd_my_trial_load'
+        let CMD_MY_TRIAL_LOAD_All = 'cmd_my_trial_load_all'
+        let CMD_MY_INFO = 'cmd_my_info'
+        let CMD_TRY_SUCCESS = 'cmd_try_success'
+        let CMD_TRY_ALREADY = 'cmd_try_already'
+        let CMD_TRY_FAILED = 'cmd_try_failed'
 
         var tryIdx = 0
 
@@ -310,7 +301,7 @@
                 noScroller: false,
                 totalPage: 1,
                 loadPage: 0,
-                showLoading: false,
+                showLoading: true,
                 loadingTip: '加载商品中，请稍后...',
 
                 // 登录
@@ -328,8 +319,9 @@
                 avatar: 'https://i.jd.com/commons/img/no-img_mid_.jpg',
 
                 // 每页显示及试用数据
-                page: 0,
+                page: 1,
                 count: 20,
+                productTotalPage: 1,
                 products: [], // 试用商品
                 myTrials: [] // 我申请的试用商品
             },
@@ -357,7 +349,7 @@
                 },
                 onRefreshProductClick: function () {
                     // 刷新商品
-                    this.page = 0
+                    this.page = 1
                     this.products = []
                     this.resetLoading()
                     this.loadAllProduct()
@@ -368,7 +360,7 @@
                     this.loadAllMyTrial()
                 },
                 onLoadMore: function () {
-                    if (this.page < this.totalPage)
+                    if (this.page < this.productTotalPage)
                         this.page++
                 },
                 onScrollToBottom: function (e) {
@@ -392,9 +384,13 @@
                 },
                 try: function () {
                     // 一键试用
+                    var me = this
+                    // 随机15-30秒
+                    var rdm = Math.floor(Math.random() * 15 + 15) * 1000;
                     lastTimeHandle = setTimeout(function () {
                         sendMessage(CMD_TRY)
-                    }, 1500 * 10)
+                        me.try()
+                    }, rdm)
                 },
                 loadAllProduct: function () {
                     // 重新加载所有试用商品
@@ -421,8 +417,8 @@
             watch: {
                 page: function (n, o) {
                     // 分页加载信息
-                    if (n == 0) return
-                    this.loadProduct(n)
+                    if (n > 1)
+                        this.loadProduct(n)
                 },
                 loadPage: function (n, o) {
                     // 加载所有商品数据进度
@@ -467,11 +463,13 @@
             } else if (cmd == CMD_LOGIN_QR_TIMEOUT) {
                 // 超时显示重新获取二维码
                 vm.timeout = true
+            } else if (cmd == CMD_TOTAL_PAGE_PRODUCT) {
+                vm.productTotalPage = data.data
             } else if (cmd == CMD_TOTAL_PAGE) {
-                // 加载商品总页数
+                // 加载loading总页数
                 vm.totalPage = data.data
             } else if (cmd == CMD_LOAD_PAGE) {
-                // 加载商品已经获取的页数
+                // 加载loading已经获取的页数
                 vm.loadPage = data.data
             } else if (cmd == CMD_PRODUCT_LOAD) {
                 // 加载商品数据
@@ -480,17 +478,19 @@
                 // 加载用户信息
                 vm.name = data.data.name
                 vm.avatar = data.data.avatar
+                isFirstLogin = data.data.firstLogin
                 vm.isLogin = true
                 vm.showLogin = false
                 vm.noScroller = false
+                if (isFirstLogin != "1") {
+                    vm.resetLoading()
+                    vm.loadAllMyTrial()
+                }
             } else if (cmd == CMD_TRY_SUCCESS) {
                 // 成功申请试用
-                vm.tryCount++
-            } else if (cmd == 52) {
+                vm.tryCount = '已试用' + data.data.count + '件'
+            } else if (cmd == CMD_TRY_FAILED) {
                 console.log(data)
-            } else if (cmd == CMD_TRY_ALREADY) {
-                // 已经申请试用,重复申请
-                vm.tryCount++
             } else {
                 console.log(data)
             }

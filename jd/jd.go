@@ -19,11 +19,14 @@ import (
 // 启动
 func (jd *JD) first() {
 	totalPageStr, err := jd.p.Get("totalPage")
-	if err != nil || totalPageStr == "" {
+	if err != nil {
 		// 第一次打开，初始化及获取当前试用商品数据
 		jd.loadProducts()
 	} else {
 		totalPage, _ := strconv.Atoi(totalPageStr)
+		jd.totalPage = totalPage
+		// 总共商品页数
+		jd.callback(CMDProductTotalPage, totalPage)
 		// 总页数消息
 		jd.callback(CMDTotalPage, totalPage)
 		// 加载完成消息
@@ -34,8 +37,36 @@ func (jd *JD) first() {
 	return
 }
 
+func (jd *JD) loginSuccess() {
+	user, err := jd.getUser()
+	if err != nil {
+		jd.e(err)
+		return
+	}
+	// 是否第一次登录
+	firstLogin, err := jd.p.Get("firstLogin")
+	if err != nil || firstLogin == "" {
+		user.FirstLogin = ""
+	} else {
+		user.FirstLogin = "1"
+	}
+	jd.user = user
+	jd.callback(CMDMyInfo, jd.user)
+
+	proCount, err := jd.p.Get("/pro/count")
+	if err == nil {
+		jd.proCount, _ = strconv.Atoi(proCount)
+	}
+	tryCount, err := jd.p.Get("/try/count")
+	if err == nil {
+		jd.tryCount, _ = strconv.Atoi(tryCount)
+	}
+	jd.callback(CMDTrySuccess, map[string]string{"code": "1", "count": tryCount + "/" + proCount})
+}
+
 // 拉取商品
 func (jd *JD) loadProducts() {
+	count := 0
 	// 延时返回第一页数据
 	defer jd.getProductsAndSend(1)
 	body, err := jd.get(TryProductURL)
@@ -54,10 +85,17 @@ func (jd *JD) loadProducts() {
 		jd.e(errors.New("获取商品失败"))
 		return
 	}
-	totalPage = 6
+
+	// 清空数据
+	jd.p.DeleteByPrefix("/pro/")
+
+	totalPage = 3
+	jd.totalPage = totalPage
 	jd.p.Put("totalPage", strconv.Itoa(totalPage))
-	// 回调前台共多少页
+	// 回调前台loading共多少页
 	jd.callback(CMDTotalPage, totalPage)
+	// 商品有多少页
+	jd.callback(CMDProductTotalPage, totalPage)
 	jd.p.Batch()
 	// 解析产品数据
 	parseProduct := func(page int, doc *goquery.Document) {
@@ -73,6 +111,7 @@ func (jd *JD) loadProducts() {
 				return
 			}
 			jd.p.BatchPutByte("/pro/"+strconv.Itoa(page)+"/"+aID, bs)
+			count++
 		})
 		// 更新了多少页
 		jd.callback(CMDLoadPage, page)
@@ -93,6 +132,7 @@ func (jd *JD) loadProducts() {
 		}
 		parseProduct(i, doc)
 	}
+	jd.p.BatchPutString("/pro/count", strconv.Itoa(count))
 	if err := jd.p.BatchCommit(); err != nil {
 		jd.e(err)
 	}
@@ -127,6 +167,7 @@ func (jd *JD) getProductsAndSend(page int) {
 // 我的试用记录
 func (jd *JD) loadMyTrials() {
 	// 解析试用数据
+	count := 0
 	parseTrial := func(page int, doc *goquery.Document) {
 		doc.Find("#try-list .list-detail-item").Each(func(i int, s *goquery.Selection) {
 			aID, _ := s.Attr("activity_id")
@@ -139,10 +180,11 @@ func (jd *JD) loadMyTrials() {
 				jd.e(err)
 				return
 			}
-			fmt.Println(string(bs))
-			jd.p.BatchPutByte("/try/"+strconv.Itoa(page)+"/"+aID, bs)
-			jd.Send(CMDLoadPage, page)
+			jd.p.BatchPutByte("/try/pro/"+strconv.Itoa(page)+"/"+aID, bs)
+			jd.p.BatchPutString("/try/"+aID, "1")
+			count++
 		})
+		jd.callback(CMDLoadPage, page)
 	}
 	// 获取我的试用第一页
 	body, err := jd.get(MyTrial)
@@ -179,15 +221,19 @@ func (jd *JD) loadMyTrials() {
 		}
 		parseTrial(i, doc)
 	}
+	jd.p.BatchPutString("firstLogin", "1")
+	jd.p.BatchPutString("/try/count", strconv.Itoa(count))
+	jd.tryCount = count
 	if err := jd.p.BatchCommit(); err != nil {
 		jd.e(err)
+		return
 	}
 }
 
 // 按页数获取我的试用数据
 func (jd *JD) getMyTrial(page int) ([]*Product, error) {
 	var products = []*Product{}
-	jd.p.ForEach("/try/"+strconv.Itoa(page)+"/", func(key string, value []byte) {
+	jd.p.ForEach("/try/pro/"+strconv.Itoa(page)+"/", func(key string, value []byte) {
 		var product Product
 		err := json.Unmarshal(value, &product)
 		if err != nil {
@@ -211,63 +257,66 @@ func (jd *JD) getMyTrialAndSend(page int) {
 }
 
 // 试用
-func (jd *JD) try(id interface{}) {
-	switch id.(type) {
-	case string:
-		idss := id.(string)
-		// 没有传id，使用本地存的商品
-		if idss == "" {
-			for jd.tryProducts == nil || len(jd.tryProducts) == 0 {
-				// 当前试用的页数
-				jd.currentTryPage++
-				// 获取第一页的数据
-				tmpProducts, err := jd.getProducts(jd.currentTryPage)
-				if err != nil {
-					jd.e(err)
-					return
-				}
-				for _, tmpProduct := range tmpProducts {
-					has, _ := jd.p.Has("/try/" + tmpProduct.AID)
-					if !has {
-						jd.callback(CMDTryAlready, map[string]string{"code": "-1", "id": idss, "message": "您的申请已成功提交，请勿重复申请…"})
-						continue
-					}
-					jd.tryProducts = append(jd.tryProducts, tmpProduct)
-				}
+func (jd *JD) try(id string) {
+	var product *Product
+	// 没有传id，使用本地存的商品
+	if id == "" {
+		for jd.tryProducts == nil || len(jd.tryProducts) == 0 {
+			if jd.currentTryPage > jd.totalPage {
+				fmt.Println("end...")
+				return
 			}
-			product := jd.tryProducts[0]
-			jd.tryProducts = append(jd.tryProducts[1:])
-			idss = product.AID
-		}
-		if idss == "" {
-			return
-		}
-		// 提交申请请求
-		body, err := jd.get(TryURL + idss)
-		if err != nil {
-			jd.e(err)
-			return
-		}
 
-		var result TryResult
-		if err := json.Unmarshal(body, &result); err != nil {
-			jd.e(err)
-			return
-		}
-		// 试用成功保存数据
-		if result.Success {
-			jd.callback(CMDTrySuccess, map[string]string{"code": "1", "id": idss})
-			jd.p.Put("/try/"+idss, "1")
-		} else {
-			if result.Code == "-110" {
-				jd.p.Put("/try/"+idss, "1")
-				jd.callback(CMDTryAlready, map[string]string{"code": "-1", "id": idss, "message": "您的申请已成功提交，请勿重复申请…"})
-			} else {
-				jd.callback(CMDTryFailed, map[string]string{"code": "-1", "id": idss, "message": result.Message})
+			// 当前试用的页数
+			jd.currentTryPage++
+			// 获取第一页的数据
+			tmpProducts, err := jd.getProducts(jd.currentTryPage)
+			if err != nil {
+				jd.e(err)
+				return
+			}
+			for _, tmpProduct := range tmpProducts {
+				has, _ := jd.p.Has("/try/" + tmpProduct.AID)
+				if has {
+					continue
+				}
+				jd.tryProducts = append(jd.tryProducts, tmpProduct)
 			}
 		}
-	default:
-		jd.e(errors.New("试用参数错误"))
+		product = jd.tryProducts[0]
+		jd.tryProducts = append(jd.tryProducts[1:])
+		id = product.AID
+	}
+	if id == "" {
+		return
+	}
+	// 提交申请请求
+	body, err := jd.get(TryURL + id)
+	if err != nil {
+		jd.e(err)
+		return
+	}
+	var result TryResult
+	if err := json.Unmarshal(body, &result); err != nil {
+		jd.e(err)
+		return
+	}
+	bs, err := json.Marshal(product)
+	if err != nil {
+		jd.e(err)
+		return
+	}
+	// 试用成功保存数据
+	if result.Success || result.Code == "-110" {
+		jd.p.Put("/try/"+id, "1")
+		jd.p.PutByte("/try/pro/"+strconv.Itoa(jd.currentTryPage)+"/"+id, bs)
+		jd.tryCount++
+		proCount := strconv.Itoa(jd.proCount)
+		tryCount := strconv.Itoa(jd.tryCount)
+		jd.p.Put("/try/count", tryCount)
+		jd.callback(CMDTrySuccess, map[string]string{"code": "1", "id": id, "count": tryCount + "/" + proCount})
+	} else {
+		jd.callback(CMDTryFailed, map[string]string{"code": "-1", "id": id, "count": "", "message": result.Message})
 	}
 }
 
@@ -303,16 +352,16 @@ func (jd *JD) getQRImage() {
 }
 
 // 获取用户信息
-func (jd *JD) getUser() {
+func (jd *JD) getUser() (*User, error) {
 	body, err := jd.get(UserURL)
 	if err != nil {
-		jd.e(err)
-		return
+		return nil, err
 	}
 	doc, _ := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
 	name := doc.Find("#user-info .info-m B").Text()
 	avatar, _ := doc.Find("#user-info .u-pic img").Attr("src")
-	jd.callback(CMDMyInfo, User{Name: name, Avatar: "http://" + avatar})
+	user := &User{Name: name, Avatar: "http://" + avatar}
+	return user, nil
 }
 
 // 检查是否登录
@@ -366,8 +415,8 @@ func (jd *JD) onCheck() {
 		}
 		if result.Code == 200 {
 			jd.getCookie(result.Ticket)
-			// 我的信息
-			go jd.getUser()
+			// 登录成功
+			go jd.loginSuccess()
 			break
 		}
 		if result.Code == 205 || result.Code == 203 {
@@ -434,7 +483,6 @@ func (jd *JD) onChannel() {
 			if err := json.Unmarshal(c.Data.(json.RawMessage), &page); err == nil {
 				go jd.getProductsAndSend(page)
 			}
-
 		case CMDMyTrialLoadAll:
 			go jd.loadMyTrials()
 		case CMDMyTrialLoad:
@@ -443,7 +491,12 @@ func (jd *JD) onChannel() {
 				go jd.getMyTrialAndSend(c.Data.(int))
 			}
 		case CMDTry:
-			go jd.try(c.Data)
+			switch c.Data.(type) {
+			case string:
+				go jd.try(c.Data.(string))
+			default:
+				go jd.try("")
+			}
 		}
 	}
 }

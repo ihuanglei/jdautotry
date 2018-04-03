@@ -51,6 +51,9 @@ const (
 	// CMDLoadPage 已加载页数
 	CMDLoadPage = "cmd_load_page"
 
+	// CMDProductTotalPage 商品页数
+	CMDProductTotalPage = "cmd_total_page_product"
+
 	// CMDProductLoadAll 所有试用商品
 	CMDProductLoadAll = "cmd_product_load_all"
 
@@ -105,7 +108,6 @@ type Product struct {
 	Name  string `json:"name"`
 	Price string `json:"price"`
 	Img   string `json:"img"`
-	IsTry int    `json:"is_try"`
 	Page  int    `json:"page"`
 	Idx   int    `json:"idx"`
 }
@@ -127,8 +129,9 @@ func (a SortByProductIdx) Less(i, j int) bool {
 
 // User 用户信息结构
 type User struct {
-	Name   string `json:"name"`
-	Avatar string `json:"avatar"`
+	Name       string `json:"name"`
+	Avatar     string `json:"avatar"`
+	FirstLogin string `json:"firstLogin"`
 }
 
 // Option 实例化参数结构
@@ -149,9 +152,13 @@ type JD struct {
 	thorCookie     *http.Cookie
 	option         *Option
 	channal        chan Channel
-	currentTryPage int        //当前试用也是
+	currentTryPage int //当前试用页数
+	totalPage      int
 	tryProducts    []*Product // 当前试用商品
 	p              *Persistence
+	user           *User
+	proCount       int
+	tryCount       int
 }
 
 // New 创建实例
