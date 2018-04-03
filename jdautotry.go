@@ -45,7 +45,7 @@ func initUI() {
 			AppIconDefaultPath: "resources/icon.png",
 		},
 		Debug:    true,
-		Homepage: "index.html",
+		Homepage: "index2.html",
 		TrayMenuOptions: []*astilectron.MenuItemOptions{{
 			Label: astilectron.PtrStr("关于"),
 			OnClick: func(e astilectron.Event) (deleteListener bool) {
@@ -70,8 +70,8 @@ func initUI() {
 		WindowOptions: &astilectron.WindowOptions{
 			BackgroundColor: astilectron.PtrStr("#fff"),
 			Center:          astilectron.PtrBool(true),
-			Height:          astilectron.PtrInt(700),
-			Width:           astilectron.PtrInt(800),
+			Height:          astilectron.PtrInt(300),
+			Width:           astilectron.PtrInt(300),
 			AutoHideMenuBar: astilectron.PtrBool(true),
 			Maximizable:     astilectron.PtrBool(false),
 		},
