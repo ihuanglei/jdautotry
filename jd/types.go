@@ -33,53 +33,46 @@ const (
 )
 
 const (
-	// CMDError 错误
-	CMDError = "cmd_error"
 
 	// CMDFirst 启动
 	CMDFirst = "cmd_first"
-
 	// CMDLoginQR 登录二维码
 	CMDLoginQR = "cmd_login_qr"
-
-	// CMDLoginQRTimeOut 登录二维码过期
-	CMDLoginQRTimeOut = "cmd_login_qr_timeout"
-
-	// CMDTotalPage 总页数
-	CMDTotalPage = "cmd_total_page"
-
-	// CMDLoadPage 已加载页数
-	CMDLoadPage = "cmd_load_page"
-
 	// CMDProductTotalPage 商品页数
 	CMDProductTotalPage = "cmd_total_page_product"
-
 	// CMDProductLoadAll 所有试用商品
 	CMDProductLoadAll = "cmd_product_load_all"
-
 	// CMDProductLoad 分页加载试用商品
 	CMDProductLoad = "cmd_product_load"
-
 	// CMDMyTrialLoad 分页加载已申请的商品
 	CMDMyTrialLoad = "cmd_my_trial_load"
-
 	// CMDMyTrialLoadAll 所有已申请商品
 	CMDMyTrialLoadAll = "cmd_my_trial_load_all"
-
-	// CMDMyInfo 我的信息
-	CMDMyInfo = "cmd_my_info"
-
 	// CMDTry 申请试用
 	CMDTry = "cmd_try"
 
-	// CMDTryAlready 商品已申请
-	CMDTryAlready = "cmd_try_already"
-
-	// CMDTrySuccess 商品申请成功
-	CMDTrySuccess = "cmd_try_success"
-
-	// CMDTryFailed 商品申请失败
-	CMDTryFailed = "cmd_try_failed"
+	// EventError 错误
+	EventError = "event_error"
+	// EventProductLoad .
+	EventProductLoad = "event_product_load"
+	// EventMyTrialLoad .
+	EventMyTrialLoad = "event_my_trial_load"
+	// EventLoginQR .
+	EventLoginQR = "event_login_qr"
+	// EventLoginQRTimeOut 登录二维码过期
+	EventLoginQRTimeOut = "event_login_qr_timeout"
+	// EventTotalPage 总页数
+	EventTotalPage = "event_total_page"
+	// EventLoadPage 已加载页数
+	EventLoadPage = "event_load_page"
+	// EventTryAlready 商品已申请
+	EventTryAlready = "event_try_already"
+	// EventTrySuccess 商品申请成功
+	EventTrySuccess = "event_try_success"
+	// EventTryFailed 商品申请失败
+	EventTryFailed = "event_try_failed"
+	// EventMyInfo 我的信息
+	EventMyInfo = "event_my_info"
 )
 
 // Cookie 结构

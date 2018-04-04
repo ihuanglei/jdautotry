@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
+	"os"
 
 	"github.com/asticode/go-astilectron"
 	bootstrap "github.com/asticode/go-astilectron-bootstrap"
@@ -37,6 +37,7 @@ func initJDClient() {
 }
 
 func initUI() {
+	os.Setenv("APPDATA", "")
 	if err := bootstrap.Run(bootstrap.Options{
 		Asset:         Asset,
 		RestoreAssets: RestoreAssets,
@@ -46,10 +47,13 @@ func initUI() {
 		},
 		Debug:    true,
 		Homepage: "index2.html",
+		MenuOptions: []*astilectron.MenuItemOptions{{
+			Label: astilectron.PtrStr("File"),
+		}},
 		TrayMenuOptions: []*astilectron.MenuItemOptions{{
-			Label: astilectron.PtrStr("关于"),
+			Label: astilectron.PtrStr("退出"),
 			OnClick: func(e astilectron.Event) (deleteListener bool) {
-				fmt.Println("我来了")
+				win.Destroy()
 				return
 			},
 		}},
@@ -70,10 +74,13 @@ func initUI() {
 		WindowOptions: &astilectron.WindowOptions{
 			BackgroundColor: astilectron.PtrStr("#fff"),
 			Center:          astilectron.PtrBool(true),
-			Height:          astilectron.PtrInt(300),
-			Width:           astilectron.PtrInt(300),
+			Width:           astilectron.PtrInt(320),
+			Height:          astilectron.PtrInt(400),
 			AutoHideMenuBar: astilectron.PtrBool(true),
 			Maximizable:     astilectron.PtrBool(false),
+			Resizable:       astilectron.PtrBool(false),
+			TitleBarStyle:   astilectron.TitleBarStyleHiddenInset,
+			Closable:        astilectron.PtrBool(false),
 		},
 	}); err != nil {
 		log.Println(errors.Wrap(err, "running bootstrap failed"))
@@ -91,6 +98,9 @@ func handleMessages(iw *astilectron.Window, m bootstrap.MessageIn) (payload inte
 
 // 京东回调
 func jdCallback(c *jd.Channel) {
+	if c.Data == jd.EventTrySuccess && tray != nil {
+		// tray. = c.Data.(string)
+	}
 	bs, err := json.Marshal(c)
 	if err != nil {
 		log.Println(err)

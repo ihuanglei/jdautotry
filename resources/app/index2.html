@@ -32,7 +32,7 @@
             text-decoration: none;
         }
 
-        #app {
+        #app-wrap {
             position: absolute;
             overflow: hidden;
             width: 100%;
@@ -49,24 +49,27 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            position: fixed;
-            width: 100%;
-            height: 100%;
+            position: absolute;
             background-color: rgba(0, 0, 0, .9);
             z-index: 102;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
         }
 
         .loading>p {
             color: #fff;
-            margin: 0 0 10px 0;
+            margin: 0 0 20px 0;
             padding: 0;
             font-size: 12px;
         }
 
         .copyright {
             font-size: 12px;
-            margin: 10px 0;
+            margin: 20px 0;
             color: #ccc;
+            text-align: center;
         }
 
         .loading .progress {
@@ -78,13 +81,13 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            margin: 10px 0;
+            margin: 20px 0;
         }
 
         .user .name {
-            font-size: 14px;
+            font-size: 16px;
             color: #222;
-            margin: 10px 0 0;
+            margin: 20px 0 0;
             padding: 0;
         }
 
@@ -98,7 +101,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            margin: 10px 0;
+            margin: 20px 0;
         }
 
         .btns button {
@@ -107,8 +110,9 @@
 
         .try-tip {
             margin: 10px;
-            padding: .2em;
-            width: 80%;
+            padding: .5em;
+            font-size: 12px;
+            text-align: center
         }
 
         .qr {
@@ -119,11 +123,10 @@
             bottom: 0;
             background-color: rgba(0, 0, 0, .5);
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 100;
-            flex-direction: column;
-            /* display: none; */
         }
 
         .qr>div {
@@ -139,7 +142,7 @@
         }
 
         .qr p {
-            margin: 10px;
+            margin: 20px;
             color: #fff;
             font-size: 12px;
         }
@@ -169,84 +172,217 @@
 </head>
 
 <body>
-    <div id="app" v-cloak>
+    <div id="app-wrap" v-cloak>
 
-        <!-- 扫码登录 -->
-        <div class="qr" v-if="showLogin">
-            <div>
-                <img class="qr-img" :src="qrImg">
-                <a class="qr-ex" href="javascript:;" @click="onRefreshQRClick" v-if="timeout">
-                    <span>过期刷新</span>
-                </a>
+        <div class="main">
+
+            <!-- 扫码登录 -->
+            <div class="qr" v-if="showLogin">
+                <div>
+                    <img class="qr-img" :src="qrImg">
+                    <a class="qr-ex" href="javascript:;" @click="onRefreshQRClick" v-if="timeout">
+                        <span>过期刷新</span>
+                    </a>
+                </div>
+                <p>扫描二维码登录</p>
             </div>
-            <p>扫描二维码登录</p>
-        </div>
 
-        <!-- 加载商品进度 -->
-        <div class="loading" v-if="showLoading">
-            <p>{{loadingTip}}</p>
-            <div class="progress">
-                <div class="progress-bar progress-bar-striped bg-info progress-bar-animated" :style="{width: progress + '%'}">{{progress}}%</div>
+            <!-- 加载商品进度 -->
+            <div class="loading" v-if="showLoading">
+                <p>{{loadingTip}}</p>
+                <div class="progress">
+                    <div class="progress-bar progress-bar-striped bg-info progress-bar-animated" :style="{width: progress + '%'}">{{progress}}%</div>
+                </div>
             </div>
+
+            <!-- 用户信息 -->
+            <div class="user">
+                <img class="avatar" :src="avatar">
+                <p class="name">{{name}}</p>
+            </div>
+
+            <div class="btns">
+                <button type="button" class="btn-refresh btn btn-info btn-sm" @click="onRefreshProductClick" v-if="trying === false">刷新商品</button>
+                <button type="button" class="btn-refresh btn btn-info btn-sm" disabled v-else>刷新商品</button>
+                <button type="button" class="btn-try btn btn-success btn-sm" @click="onTryClick" v-if="trying === false">一键试用</button>
+                <button type="button" class="btn-try btn btn-danger btn-sm" @click="onStopTryClick" v-else>暂停试用</button>
+            </div>
+
+            <!-- 提示 -->
+            <div class="alert alert-warning try-tip" role="alert">
+                {{tryTip}}
+            </div>
+
+            <p class="copyright">© https://github.com/ihuanglei</p>
         </div>
-
-        <!-- 用户信息 -->
-        <div class="user">
-            <img class="avatar" :src="avatar">
-            <p class="name">{{name}}</p>
-        </div>
-
-        <div class="btns">
-            <button type="button" class="btn-refresh btn btn-info btn-sm" @click="onRefreshProductClick">刷新商品</button>
-            <button type="button" class="btn-try btn btn-success btn-sm" @click="onTryClick" v-if="trying === false">一键试用</button>
-            <button type="button" class="btn-try btn btn-danger btn-sm" @click="onStopTryClick" v-else>暂停试用</button>
-        </div>
-
-        <div class="alert alert-success try-tip" role="alert">
-            {{tryCount}}
-        </div>
-
-        <p class="copyright">© https://github.com/ihuanglei</p>
-
 
     </div>
 
     <script src="https://cdn.bootcss.com/vue/2.5.16/vue.min.js"></script>
     <script>
+
+        let CMD_FIRST = 'cmd_first'
+        let CMD_LOGIN_QR = 'cmd_login_qr'
+        let CMD_PRODUCT_LOAD_ALL = 'cmd_product_load_all'
+        let CMD_TRY = 'cmd_try'
+
+        let EVENT_LOGIN_QR_TIMEOUT = 'event_login_qr_timeout'
+        let EVENT_TOTAL_PAGE = 'event_total_page'
+        let EVENT_LOAD_PAGE = 'event_load_page'
+        let EVENT_TRY_SUCCESS = 'event_try_success'
+        let EVENT_TRY_ALREADY = 'event_try_already'
+        let EVENT_TRY_FAILED = 'event_try_failed'
+        let EVENT_LOGIN_QR = 'event_login_qr'
+        let EVENT_MY_INFO = 'event_my_info'
+
+        var lastTimeHandle = undefined
+
         var vm = new Vue({
-            el: '#app',
+            el: '#app-wrap',
             data: {
+
+                // 我的信息
                 name: '未登录',
                 avatar: 'https://i.jd.com/commons/img/no-img_mid_.jpg',
-                loadingTip: '加载商品中，请稍后...',
-                showLoading: false,
-                progress: 50,
+
+                // 试用
                 trying: false,
-                isLogin: true,
-                tryCount: '111',
+                tryTip: '登录中...',
+
                 // 登录
                 showLogin: false,
                 isLogin: false,
-                timeout: true,
+                timeout: false,
                 qrImg: null,
+
+                // loading 页面
+                progress: 0,
+                totalPage: 0,
+                loadPage: 0,
+                showLoading: true,
+                loadingTip: '加载商品中，请稍后...',
+
+                astilectron: undefined
             },
             methods: {
                 onRefreshQRClick: function () {
-
+                    this.showLoadingQR()
                 },
                 onRefreshProductClick: function () {
-
+                    this.resetLoading()
+                    this.sendMessage(CMD_PRODUCT_LOAD_ALL)
                 },
                 onTryClick: function () {
-
+                    // 一键试用
+                    if (this.trying) return
+                    if (!this.isLogin) {
+                        this.showLogin = true
+                        return
+                    }
+                    this.trying = true
+                    this.try()
                 },
                 onStopTryClick: function () {
+                    clearTimeout(lastTimeHandle)
+                    this.trying = false
+                    lastTimeHandle = undefined
+                },
+                onMessage: function (message) {
+                    console.log(message)
+                    var data = JSON.parse(message)
+                    var cmd = data.cmd
+                    if (cmd == EVENT_LOGIN_QR) {
+                        // 二维码图片消息
+                        this.qrImg = data.data
+                        if (this.timeout === true)
+                            this.timeout = false
+                    } else if (cmd == EVENT_LOGIN_QR_TIMEOUT) {
+                        // 超时显示重新获取二维码
+                        this.timeout = true
+                    } else if (cmd == EVENT_TOTAL_PAGE) {
+                        // 进度条总页数
+                        this.totalPage = data.data
+                    } else if (cmd == EVENT_LOAD_PAGE) {
+                        // 进度条已经获取的页数
+                        this.loadPage = data.data
+                    } else if (cmd == EVENT_MY_INFO) {
+                        // 加载用户信息
+                        this.name = data.data.name
+                        this.avatar = data.data.avatar
+                        isFirstLogin = data.data.firstLogin
+                        this.isLogin = true
+                        this.showLogin = false
+                        if (isFirstLogin != "1") {
+                            this.resetLoading()
+                        }
+                    } else if (cmd == EVENT_TRY_SUCCESS) {
+                        // 成功申请试用
+                        this.tryTip = data.data.count
+                    } else if (cmd == EVENT_TRY_FAILED) {
 
+                    } else {
+
+                    }
+                },
+                resetLoading: function () {
+                    // 初始化进度条
+                    this.totalPage = 0
+                    this.loadPage = 0
+                    this.showLoading = true
+                    this.loadingTip = '数据加载中，请稍后...'
+                },
+                try: function () {
+                    // 一键试用
+                    // 随机15-30秒
+                    var me = this
+                    var rdm = Math.floor(Math.random() * 15 + 15) * 1000;
+                    lastTimeHandle = setTimeout(function () {
+                        me.sendMessage(CMD_TRY)
+                        me.try()
+                    }, rdm)
+                },
+                showLoadingQR: function () {
+                    // 二维码登录
+                    this.showLogin = true
+                    this.sendMessage(CMD_LOGIN_QR)
+                },
+                sendMessage: function (cmd, data) {
+                    if (this.astilectron === undefined) {
+                        return
+                    }
+                    this.astilectron.sendMessage({ name: cmd, payload: data })
                 }
+            },
+            watch: {
+                astilectron: function (n, o) {
+                    if (n) {
+                        n.onMessage(this.onMessage)
+                        this.sendMessage(CMD_FIRST)
+                    }
+                },
+                loadPage: function (n, o) {
+                    // 加载数据进度
+                    if (this.totalPage <= 0) {
+                        this.progress = 0
+                    } else {
+                        this.progress = parseInt(n * 100 / this.totalPage)
+                    }
+                    if (n == this.totalPage && n > 0) {
+                        this.loadingTip = '加载完成'
+                        var me = this
+                        setTimeout(function () {
+                            me.showLoading = false
+                            if (!me.isLogin)
+                                me.showLoadingQR()
+                        }, 1000)
+
+                    }
+                },
             }
         })
 
         document.addEventListener('astilectron-ready', function () {
+            vm.astilectron = astilectron
         })
     </script>
 </body>
