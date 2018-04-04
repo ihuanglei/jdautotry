@@ -79,8 +79,8 @@ func initUI() {
 			AutoHideMenuBar: astilectron.PtrBool(true),
 			Maximizable:     astilectron.PtrBool(false),
 			Resizable:       astilectron.PtrBool(false),
-			TitleBarStyle:   astilectron.TitleBarStyleHiddenInset,
-			Closable:        astilectron.PtrBool(false),
+			// TitleBarStyle:   astilectron.TitleBarStyleHiddenInset,
+			Closable: astilectron.PtrBool(false),
 		},
 	}); err != nil {
 		log.Println(errors.Wrap(err, "running bootstrap failed"))
