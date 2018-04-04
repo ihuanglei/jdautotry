@@ -42,8 +42,8 @@ func initUI() {
 		Asset:         Asset,
 		RestoreAssets: RestoreAssets,
 		AstilectronOptions: astilectron.Options{
-			AppIconDarwinPath:  "resources/icon.icns",
-			AppIconDefaultPath: "resources/icon.png",
+			AppIconDarwinPath:  "resources/app.icns",
+			AppIconDefaultPath: "resources/app.png",
 		},
 		Debug:    true,
 		Homepage: "index2.html",
@@ -57,7 +57,7 @@ func initUI() {
 				return
 			},
 		}},
-		TrayOptions: &astilectron.TrayOptions{Image: astilectron.PtrStr("resources/icon.png"), Tooltip: astilectron.PtrStr("京东试用")},
+		TrayOptions: &astilectron.TrayOptions{Image: astilectron.PtrStr("resources/app_tray.png"), Tooltip: astilectron.PtrStr("京东试用")},
 		OnWait: func(_ *astilectron.Astilectron, iw *astilectron.Window, _ *astilectron.Menu, tray *astilectron.Tray, _ *astilectron.Menu) error {
 			win = iw
 			iw.On(astilectron.EventNameWindowEventMinimize, func(event astilectron.Event) (deleteListener bool) {
