@@ -57,7 +57,7 @@ func initUI() {
 				return
 			},
 		}},
-		TrayOptions: &astilectron.TrayOptions{Image: astilectron.PtrStr("resources/app_tray.png"), Tooltip: astilectron.PtrStr("京东试用")},
+		TrayOptions: &astilectron.TrayOptions{Image: astilectron.PtrStr("resources/app_tray@2x.png"), Tooltip: astilectron.PtrStr("京东试用")},
 		OnWait: func(_ *astilectron.Astilectron, iw *astilectron.Window, _ *astilectron.Menu, tray *astilectron.Tray, _ *astilectron.Menu) error {
 			win = iw
 			iw.On(astilectron.EventNameWindowEventMinimize, func(event astilectron.Event) (deleteListener bool) {
