@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"regexp"
 
 	"github.com/asticode/go-astilectron"
 	bootstrap "github.com/asticode/go-astilectron-bootstrap"
@@ -92,7 +93,22 @@ func handleMessages(iw *astilectron.Window, m bootstrap.MessageIn) (payload inte
 	if win == nil {
 		win = iw
 	}
-	jdClient.Send(m.Name, m.Payload)
+
+	match, _ := regexp.MatchString("lcmd_.*", m.Name)
+
+	if match {
+		switch m.Name {
+		case "lcmd_open_brower":
+			var uri string
+			if err := json.Unmarshal(m.Payload, &uri); err == nil {
+				jd.OpenBrower(uri)
+			}
+		default:
+			break
+		}
+	} else {
+		jdClient.Send(m.Name, m.Payload)
+	}
 	return
 }
 

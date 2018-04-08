@@ -121,12 +121,12 @@ func (jd *JD) loadProducts() {
 		body, err := jd.get(TryProductURL + "?page=" + strconv.Itoa(i))
 		if err != nil {
 			jd.e(err)
-			return
+			continue
 		}
 		doc, err := jd.document(body)
 		if err != nil {
 			jd.e(err)
-			return
+			continue
 		}
 		parseProduct(i, doc)
 	}
@@ -164,6 +164,8 @@ func (jd *JD) getProductsAndSend(page int) {
 
 // 我的试用记录
 func (jd *JD) loadMyTrials() {
+
+	defer jd.sendTryTip()
 	// 解析试用数据
 	count := 0
 	parseTrial := func(page int, doc *goquery.Document) {
@@ -197,23 +199,25 @@ func (jd *JD) loadMyTrials() {
 	}
 	// 获取总共多少条数据
 	totalPage := toInt(doc.Find(".page .p-skip b").Text(), 0)
-	jd.callback(EventTotalPage, totalPage)
 	jd.p.Batch()
-	// 第一页已经取出 直接使用
-	parseTrial(1, doc)
-	// 从第二页开始循环
-	for i := 2; i <= totalPage; i++ {
-		body, err := jd.get(MyTrial + "?page=" + strconv.Itoa(i))
-		if err != nil {
-			jd.e(err)
-			return
+	if totalPage > 0 {
+		jd.callback(EventTotalPage, totalPage)
+		// 第一页已经取出 直接使用
+		parseTrial(1, doc)
+		// 从第二页开始循环
+		for i := 2; i <= totalPage; i++ {
+			body, err := jd.get(MyTrial + "?page=" + strconv.Itoa(i))
+			if err != nil {
+				jd.e(err)
+				continue
+			}
+			doc, err := jd.document(body)
+			if err != nil {
+				jd.e(err)
+				continue
+			}
+			parseTrial(i, doc)
 		}
-		doc, err := jd.document(body)
-		if err != nil {
-			jd.e(err)
-			return
-		}
-		parseTrial(i, doc)
 	}
 	jd.p.BatchPutString("firstLogin", "1")
 	jd.p.BatchPutString("/try/count", toStr(count))
@@ -222,7 +226,6 @@ func (jd *JD) loadMyTrials() {
 		jd.e(err)
 		return
 	}
-	jd.sendTryTip()
 }
 
 // 按页数获取我的试用数据

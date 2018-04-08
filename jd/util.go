@@ -1,10 +1,11 @@
 package jd
 
 import (
-	"fmt"
+	"errors"
 	"os/exec"
 	"runtime"
 	"strconv"
+	"strings"
 )
 
 func toInt(s string, defInt int) (i int) {
@@ -20,19 +21,20 @@ func toStr(i int) (s string) {
 	return
 }
 
-func openBrower(uri string) error {
-
-	var commands = map[string]string{
-		"windows": "cmd /c start",
-		"darwin":  "open",
-		"linux":   "xdg-open",
+// OpenBrower .
+func OpenBrower(uri string) error {
+	var ss string
+	switch runtime.GOOS {
+	case "windows":
+		ss = "cmd /c start " + uri
+	case "darwin":
+		ss = "open " + uri
+	case "linux":
+		ss = "xdg-open " + uri
+	default:
+		return errors.New("Command Not Found")
 	}
-
-	run, ok := commands[runtime.GOOS]
-	if !ok {
-		return fmt.Errorf("don't know how to open things on %s platform", runtime.GOOS)
-	}
-
-	cmd := exec.Command(run, uri)
+	args := strings.Split(ss, " ")
+	cmd := exec.Command(args[0], args[1:]...)
 	return cmd.Start()
 }

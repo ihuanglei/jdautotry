@@ -72,6 +72,11 @@
             text-align: center;
         }
 
+        .copyright a {
+            color: #999;
+            text-decoration: underline;
+        }
+
         .loading .progress {
             width: 50%;
         }
@@ -213,7 +218,9 @@
                 {{tryTip}}
             </div>
 
-            <p class="copyright">© https://github.com/ihuanglei</p>
+            <p class="copyright">© huanglei
+                <a href="javascript:;" @click="onForwardClick">京东试用网页版</a>
+            </p>
         </div>
 
     </div>
@@ -235,6 +242,8 @@
         let EVENT_LOGIN_QR = 'event_login_qr'
         let EVENT_MY_INFO = 'event_my_info'
 
+        let LCMD_OPEN_BROWER = 'lcmd_open_brower'
+
         var lastTimeHandle = undefined
 
         var vm = new Vue({
@@ -247,7 +256,7 @@
 
                 // 试用
                 trying: false,
-                tryTip: '登录中...',
+                tryTip: '登录中',
 
                 // 登录
                 showLogin: false,
@@ -260,7 +269,7 @@
                 totalPage: 0,
                 loadPage: 0,
                 showLoading: true,
-                loadingTip: '加载商品中，请稍后...',
+                loadingTip: '数据加载中，请稍后...',
 
                 astilectron: undefined
             },
@@ -274,11 +283,11 @@
                 },
                 onTryClick: function () {
                     // 一键试用
-                    if (this.trying) return
-                    if (!this.isLogin) {
+                    if (this.isLogin == false) {
                         this.showLogin = true
                         return
                     }
+                    if (this.trying) return
                     this.trying = true
                     this.try()
                 },
@@ -286,6 +295,10 @@
                     clearTimeout(lastTimeHandle)
                     this.trying = false
                     lastTimeHandle = undefined
+                },
+                onForwardClick: function () {
+                    let url = 'https://try.jd.com'
+                    this.sendMessage(LCMD_OPEN_BROWER, url)
                 },
                 onMessage: function (message) {
                     console.log(message)
@@ -318,6 +331,9 @@
                     } else if (cmd == EVENT_TRY_SUCCESS) {
                         // 成功申请试用
                         this.tryTip = data.data.count
+                        if (this.showLoading) {
+                            this.showLoading = false
+                        }
                     } else if (cmd == EVENT_TRY_FAILED) {
 
                     } else {
