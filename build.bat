@@ -8,3 +8,4 @@ ECHO . clean
 
 RENAME bind.go.bak bind.go
 DEL bind_windows_amd64.go
+DEL windows.syso
