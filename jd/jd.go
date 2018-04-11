@@ -440,6 +440,7 @@ func (jd *JD) get(url string) ([]byte, error) {
 	if jd.thorCookie != nil {
 		req.AddCookie(jd.thorCookie)
 	}
+	req.Header.Add("Referer", "https://try.jd.com")
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
